@@ -5,24 +5,45 @@ Arène pour tester des agents opencode sur des challenges, comparer les modèles
 ## Structure
 
 ```
-├── challenges/           # Les challenges
-│   └── <name>/
-│       ├── challenge.md  # Instructions pour l'agent
-│       ├── models.json   # Modèles à tester
-│       └── runs/         # Résultats (généré)
-├── skills/
-│   └── arena/SKILL.md    # Skill pour utiliser l'arène
+├── challenges/
+│   └── <nom>/
+│       ├── challenge.md       # la tâche à accomplir
+│       ├── models.json        # modèles à tester
+│       ├── leaderboard.json   # résultats agrégés
+│       └── runs/              # résultats par modèle
+│           └── <model-slug>/
+│               ├── output.md
+│               ├── screenshot.png
+│               └── meta.json
+├── skills/arena/SKILL.md
 ├── scripts/
-│   ├── new-challenge     # Créer un nouveau challenge
-│   └── pricing.json      # Tarifs des modèles
-└── opencode.json         # Config avec agents pré-définis
+│   ├── new-challenge          # créer un challenge
+│   ├── run-challenge          # exécuter un challenge
+│   └── pricing.json           # tarifs des modèles
+└── opencode.json
 ```
 
 ## Usage
 
-1. **Créer un challenge** : `bash scripts/new-challenge <nom>`
-2. **Éditer** `challenges/<nom>/challenge.md` avec la tâche
-3. **Configurer** `challenges/<nom>/models.json` avec les modèles
-4. **Charger le skill arena** dans opencode : `/skill arena`
-5. **Exécuter** le challenge via les instructions du skill
-6. **Consulter** les résultats dans `challenges/<nom>/runs/`
+```bash
+# Créer un challenge
+bash scripts/new-challenge mon-test
+
+# Éditer le challenge
+$EDITOR challenges/mon-test/challenge.md
+$EDITOR challenges/mon-test/models.json
+
+# Lancer
+bash scripts/run-challenge mon-test
+
+# Voir les résultats
+cat challenges/mon-test/leaderboard.json
+```
+
+Depuis opencode :
+```
+/new-challenge mon-test
+/run-challenge mon-test
+```
+
+Les modèles disponibles sont listés par `opencode models`.

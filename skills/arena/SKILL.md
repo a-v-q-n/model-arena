@@ -3,7 +3,7 @@ name: arena
 description: Arena d'évaluation — crée et exécute des challenges sur plusieurs modèles en parallèle
 ---
 
-# Arena — Test d'agents
+# Arena
 
 ## Commandes
 
@@ -12,39 +12,38 @@ description: Arena d'évaluation — crée et exécute des challenges sur plusie
 | `/new-challenge <nom>` | Crée un nouveau challenge |
 | `/run-challenge <nom>` | Exécute un challenge sur tous les modèles |
 
-Depuis le terminal (en dehors d'opencode) :
+Depuis le terminal :
 
 ```bash
-bash scripts/new-challenge <nom>        # créer
-bash scripts/run-challenge <nom>        # exécuter
-bash scripts/run-challenge <nom> 300    # avec timeout 5min
+bash scripts/new-challenge <nom>       # créer
+bash scripts/run-challenge <nom>       # exécuter (timeout 3min)
+bash scripts/run-challenge <nom> 300   # timeout 5min
 ```
 
 ## Structure d'un challenge
 
 ```
 challenges/<nom>/
-├── challenge.md      # la tâche à accomplir par chaque agent
-├── models.json       # modèles à tester (id, provider, label)
-└── runs/             # généré par run-challenge
-    ├── <model-id>/
-    │   ├── output.md       # sortie complète de l'agent
-    │   ├── screenshot.png  # capture d'écran (si applicable)
-    │   └── meta.json       # durée, présence capture
-    └── leaderboard.json    # comparatif
+├── challenge.md       # la tâche à accomplir
+├── models.json        # modèles à tester
+├── leaderboard.json   # résultats agrégés (généré)
+└── runs/
+    └── <model-slug>/  # résultats par modèle (généré)
+        ├── output.md
+        ├── screenshot.png
+        └── meta.json
 ```
+
+Le `slug` est le model ID avec les `/` remplacés par `-`.
 
 ## Workflow
 
-1. **Créer** : `/new-challenge mon-truc`
-2. **Éditer** `challenges/mon-truc/challenge.md` avec la consigne précise
-3. **Configurer** `challenges/mon-truc/models.json` avec les modèles dispo
-4. **Lancer** : `/run-challenge mon-truc`
-5. **Analyser** les résultats dans `challenges/mon-truc/runs/leaderboard.json`
+1. `bash scripts/new-challenge mon-truc`
+2. Éditer `challenges/mon-truc/challenge.md` (la consigne)
+3. Configurer `challenges/mon-truc/models.json` (les modèles)
+4. `bash scripts/run-challenge mon-truc`
+5. Lire `challenges/mon-truc/leaderboard.json`
 
-## Notes
+## Tarifs
 
-- Le script `run-challenge` lance les modèles **séquentiellement**
-- Les résultats incluent : temps d'exécution, capture d'écran, sortie brute
-- Pour les modèles payants, configure les bons IDs dans `models.json` (la commande `opencode models` liste les modèles disponibles)
-- Les tarifs sont dans `scripts/pricing.json` pour le calcul de coût
+Les prix des modèles sont dans `scripts/pricing.json` ($/M tokens).

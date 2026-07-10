@@ -1,0 +1,5 @@
+{
+  "challenge": "hello-world",
+  "timestamp": "2026-07-10T20:01:40Z",
+  "results": [{"model":"opencode/deepseek-v4-flash-free","slug":"opencode-deepseek-v4-flash-free","provider":"opencode","label":"DeepSeek V4 Flash (gratuit)","duration_seconds":18,"screenshot":true}]
+}

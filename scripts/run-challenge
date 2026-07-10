@@ -30,7 +30,7 @@ done
 
 PROMPT=$(cat "$CHALLENGE_FILE")
 mkdir -p "$RUNS_DIR"
-RESULTS_JSON="$RUNS_DIR/leaderboard.json"
+RESULTS_JSON="$DIR/leaderboard.json"
 
 echo "🏟️  Arena — challenge '$NAME'"
 echo ""
@@ -49,7 +49,8 @@ PORT=18765
 
 while IFS='|' read -r MODEL_ID PROVIDER LABEL; do
   [ -z "$MODEL_ID" ] && continue
-  MODEL_DIR="$RUNS_DIR/$MODEL_ID"
+  MODEL_SLUG=$(echo "$MODEL_ID" | tr '/' '-')
+  MODEL_DIR="$RUNS_DIR/$MODEL_SLUG"
   mkdir -p "$MODEL_DIR"
 
   echo "▶️  [$LABEL] en cours... (timeout ${TIMEOUT_PER_RUN}s)"
@@ -133,7 +134,7 @@ $PROMPT
 }
 META
 
-  RESULTS+=("{\"model\":\"$MODEL_ID\",\"provider\":\"$PROVIDER\",\"label\":\"$LABEL\",\"duration_seconds\":$DURATION,\"screenshot\":$SCREENSHOT_EXISTS}")
+  RESULTS+=("{\"model\":\"$MODEL_ID\",\"slug\":\"$MODEL_SLUG\",\"provider\":\"$PROVIDER\",\"label\":\"$LABEL\",\"duration_seconds\":$DURATION,\"screenshot\":$SCREENSHOT_EXISTS}")
 done <<< "$MODELS"
 
 # Build leaderboard
@@ -169,5 +170,5 @@ for r in sorted(data['results'], key=lambda x: x['duration_seconds']):
 "
 
 echo ""
-echo "📁  Résultats : $RUNS_DIR"
+echo "📁  Résultats détaillés : $RUNS_DIR/"
 echo "📊  Leaderboard : $RESULTS_JSON"

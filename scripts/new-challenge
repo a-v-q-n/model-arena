@@ -41,13 +41,13 @@ cat > "$DIR/models.json" << MODELS
 {
   "models": [
     {
-      "id": "claude-sonnet-4-20250514",
-      "provider": "anthropic",
+      "id": "openrouter/anthropic/claude-sonnet-4",
+      "provider": "openrouter",
       "label": "Claude Sonnet 4"
     },
     {
-      "id": "gpt-4o",
-      "provider": "openai",
+      "id": "openrouter/openai/gpt-4o",
+      "provider": "openrouter",
       "label": "GPT-4o"
     }
   ]
