@@ -5,45 +5,43 @@ description: Arena d'évaluation — crée et exécute des challenges sur plusie
 
 # Arena
 
+Guide complet dans `README.md`. Résumé :
+
 ## Commandes
 
-| Commande | Action |
+| Depuis opencode | Depuis le terminal |
 |---|---|
-| `/new-challenge <nom>` | Crée un nouveau challenge |
-| `/run-challenge <nom>` | Exécute un challenge sur tous les modèles |
+| `/new-challenge <nom>` | `bash scripts/new-challenge <nom>` |
+| `/run-challenge <nom>` | `bash scripts/run-challenge <nom>` |
 
-Depuis le terminal :
-
-```bash
-bash scripts/new-challenge <nom>       # créer
-bash scripts/run-challenge <nom>       # exécuter (timeout 3min)
-bash scripts/run-challenge <nom> 300   # timeout 5min
-```
-
-## Structure d'un challenge
+## Structure
 
 ```
 challenges/<nom>/
-├── challenge.md       # la tâche à accomplir
-├── models.json        # modèles à tester
-├── leaderboard.json   # résultats agrégés (généré)
-└── runs/
-    └── <model-slug>/  # résultats par modèle (généré)
-        ├── output.md
-        ├── screenshot.png
-        └── meta.json
+├── challenge.md       # consigne donnée à chaque agent
+├── models.json        # modèles à tester (id, label, provider)
+├── leaderboard.json   # résultats comparés (généré par run)
+└── runs/<slug>/       # résultats par modèle (généré)
+    ├── output.md
+    ├── screenshot.png
+    └── meta.json
 ```
 
-Le `slug` est le model ID avec les `/` remplacés par `-`.
+Le slug est le model ID avec les `/` remplacés par `-`.
 
 ## Workflow
 
-1. `bash scripts/new-challenge mon-truc`
-2. Éditer `challenges/mon-truc/challenge.md` (la consigne)
-3. Configurer `challenges/mon-truc/models.json` (les modèles)
-4. `bash scripts/run-challenge mon-truc`
-5. Lire `challenges/mon-truc/leaderboard.json`
+1. `/new-challenge mon-truc` → crée les fichiers
+2. Éditer `challenge.md` (consigne) et `models.json` (modèles)
+3. `/run-challenge mon-truc` → exécute
+4. Consulter `challenges/mon-truc/leaderboard.json`
 
-## Tarifs
+## Liste des modèles
 
-Les prix des modèles sont dans `scripts/pricing.json` ($/M tokens).
+Les IDs sont ceux de `opencode models`. Exemple :
+```
+openrouter/anthropic/claude-sonnet-4
+openrouter/openai/gpt-4o
+openrouter/deepseek/deepseek-chat
+opencode/deepseek-v4-flash-free
+```
