@@ -147,7 +147,7 @@ import Base from "../layouts/Base.astro";
     if (durees.length >= 2) {
       const rapide = durees.reduce((a, b) => (a.duration_seconds <= b.duration_seconds ? a : b));
       const lent = durees.reduce((a, b) => (a.duration_seconds >= b.duration_seconds ? a : b));
-      lignes.push(
+      if (lent.duration_seconds > rapide.duration_seconds) lignes.push(
         `Vitesse — ${rapide.label} boucle en ${rapide.duration_seconds}s, ` +
           `${(lent.duration_seconds / rapide.duration_seconds).toFixed(1)}× plus vite que ${lent.label} (${lent.duration_seconds}s).`
       );
@@ -210,7 +210,9 @@ import Base from "../layouts/Base.astro";
 
       $("rapport-section").hidden = false;
       const durees = results.filter((r) => r.duration_seconds > 0);
-      const rapide = durees.length >= 2 ? durees.reduce((a, b) => (a.duration_seconds <= b.duration_seconds ? a : b)) : null;
+      let rapide = durees.length >= 2 ? durees.reduce((a, b) => (a.duration_seconds <= b.duration_seconds ? a : b)) : null;
+      // Pas de foyer vermillon en cas d'ex æquo : personne n'est « le plus rapide ».
+      if (rapide && durees.some((r) => r !== rapide && r.duration_seconds === rapide.duration_seconds)) rapide = null;
       results.forEach((r) => $("rapport-lignes").append(ligneRapport(r, r === rapide)));
       lectureComparee(results).forEach((l) => $("analyse").append(el("li", { text: l })));
     }
