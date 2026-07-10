@@ -2,10 +2,11 @@
 import Base from "../layouts/Base.astro";
 // LE template de récap : une seule page pour tous les challenges. Elle fetch
 // challenges/<c>/challenge.md + leaderboard.json côté client et rend tout —
-// rien n'est généré par challenge.
+// rien n'est généré par challenge. Ordre de lecture : les livrables (iframes
+// côte à côte), le rapport chiffré, la consigne.
 ---
 
-<Base title="Récap">
+<Base title="Récap" wide>
   <div id="etat" class="etat">
     <p class="eyebrow">Récap</p>
     <p class="lede">Chargement du challenge…</p>
@@ -13,30 +14,40 @@ import Base from "../layouts/Base.astro";
 
   <article id="recap" hidden>
     <header class="entete">
-      <a class="retour meta" href="/">← Tous les challenges</a>
-      <p class="eyebrow" id="date"></p>
       <h1 id="titre"></h1>
       <p class="meta" id="sous-titre"></p>
     </header>
 
     <section>
-      <h2 class="section-titre">La consigne</h2>
-      <pre id="consigne" class="consigne"></pre>
+      <div id="livrables" class="livrables"></div>
+    </section>
+
+    <section id="rapport-section" hidden>
+      <h2 class="section-titre">Le rapport</h2>
+      <div class="carte">
+        <table class="rapport">
+          <thead>
+            <tr>
+              <th>Modèle</th>
+              <th class="num">Durée</th>
+              <th class="num">Tokens in</th>
+              <th class="num">Tokens out</th>
+              <th class="num">Total</th>
+              <th class="num">Coût estimé</th>
+            </tr>
+          </thead>
+          <tbody id="rapport-lignes"></tbody>
+        </table>
+        <ul id="analyse" class="analyse"></ul>
+      </div>
     </section>
 
     <section>
-      <h2 class="section-titre">Résultats</h2>
-      <div id="cartes" class="cartes"></div>
-    </section>
-
-    <section id="analyse-section" hidden>
-      <h2 class="section-titre">Lecture comparée</h2>
-      <ul id="analyse" class="analyse"></ul>
-    </section>
-
-    <section id="details-section" hidden>
-      <h2 class="section-titre">Livrables</h2>
-      <div id="details" class="details"></div>
+      <div class="consigne-entete">
+        <h2 class="section-titre">La consigne</h2>
+        <button class="btn" id="copier" type="button">Copier</button>
+      </div>
+      <pre id="consigne" class="carte consigne"></pre>
     </section>
   </article>
 
@@ -100,39 +111,33 @@ import Base from "../layouts/Base.astro";
     }
   }
 
-  function carte(r, index, focal) {
-    const stats = el("dl", { class: "stats" });
-    const ligne = (dt, dd) =>
-      stats.append(el("div", { class: "stat" }, [el("dt", { text: dt }), el("dd", { text: dd })]));
-    ligne("Durée", r.duration_seconds != null ? r.duration_seconds + "s" : "—");
-    ligne("Tokens in", fmtTokens(r.tokens?.input_tokens));
-    ligne("Tokens out", fmtTokens(r.tokens?.output_tokens));
-    ligne("Total", fmtTokens(totalTokens(r)));
-    ligne("Coût estimé", fmtCout(r.estimated_cost));
-
-    const media = el("div", { class: "capture" });
-    if (r.screenshot) {
-      const img = el("img", {
-        src: `/challenges/${challengeName}/runs/${r.slug}/screenshot.png`,
-        alt: `Capture — ${r.label}`,
-        loading: "lazy",
-      });
-      img.addEventListener("error", () => {
-        media.replaceChildren(el("p", { class: "meta", text: "Capture non publiée" }));
-      });
-      media.append(img);
+  async function livrable(r) {
+    const url = `/challenges/${challengeName}/runs/${r.slug}/index.html`;
+    const entete = el("header", { class: "livrable-entete" }, [
+      el("h3", { text: r.label ?? r.model }),
+    ]);
+    const bloc = el("div", { class: "carte livrable" }, [entete]);
+    if (await existe(url)) {
+      entete.append(
+        el("a", { class: "btn", href: url, target: "_blank", rel: "noopener", text: "Ouvrir ↗" })
+      );
+      bloc.append(el("iframe", { src: url, title: `Livrable — ${r.label}`, loading: "lazy" }));
     } else {
-      media.append(el("p", { class: "meta", text: "Aucune capture" }));
+      bloc.append(el("p", { class: "livrable-vide meta", text: "Livrable non publié" }));
     }
+    return bloc;
+  }
 
-    return el("div", { class: focal ? "carte focal" : "carte" }, [
-      el("header", { class: "carte-entete" }, [
-        el("span", { class: "rang meta", text: String(index + 1).padStart(2, "0") }),
-        el("h3", { text: r.label ?? r.model }),
-        el("span", { class: "meta", text: r.provider ?? "" }),
-      ]),
-      stats,
-      media,
+  function ligneRapport(r, focal) {
+    const cellule = (val, num, accent) =>
+      el("td", { class: [num ? "num" : null, accent ? "accent" : null].filter(Boolean).join(" ") || null, text: val });
+    return el("tr", {}, [
+      cellule(r.label ?? r.model, false, false),
+      cellule(r.duration_seconds != null ? r.duration_seconds + "s" : "—", true, focal),
+      cellule(fmtTokens(r.tokens?.input_tokens), true, false),
+      cellule(fmtTokens(r.tokens?.output_tokens), true, false),
+      cellule(fmtTokens(totalTokens(r)), true, false),
+      cellule(fmtCout(r.estimated_cost), true, false),
     ]);
   }
 
@@ -163,40 +168,6 @@ import Base from "../layouts/Base.astro";
     return lignes;
   }
 
-  async function detail(r) {
-    const base = `/challenges/${challengeName}/runs/${r.slug}`;
-    const bloc = el("div", { class: "detail" }, [
-      el("header", { class: "detail-entete" }, [
-        el("h3", { text: r.label ?? r.model }),
-        el("span", {
-          class: "meta",
-          text: [
-            r.duration_seconds != null ? r.duration_seconds + "s" : null,
-            totalTokens(r) != null ? fmtTokens(totalTokens(r)) + " tokens" : null,
-            fmtCout(r.estimated_cost) !== "—" ? fmtCout(r.estimated_cost) : null,
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        }),
-      ]),
-    ]);
-    const [aHtml, aOutput] = await Promise.all([existe(`${base}/index.html`), existe(`${base}/output.md`)]);
-    if (aHtml) {
-      bloc.append(
-        el("div", { class: "apercu" }, [
-          el("iframe", { src: `${base}/index.html`, title: `Livrable — ${r.label}`, loading: "lazy" }),
-        ]),
-        el("a", { class: "meta lien-livrable", href: `${base}/index.html`, text: "Ouvrir le livrable ↗", target: "_blank", rel: "noopener" })
-      );
-    } else {
-      bloc.append(el("p", { class: "meta", text: "Livrable non publié" }));
-    }
-    if (aOutput) {
-      bloc.append(el("a", { class: "meta lien-livrable", href: `${base}/output.md`, text: "Journal du run (output.md) →" }));
-    }
-    return bloc;
-  }
-
   const challengeName = new URLSearchParams(location.search).get("c") ?? "";
 
   async function main() {
@@ -217,28 +188,31 @@ import Base from "../layouts/Base.astro";
     const titre = consigne.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? challengeName;
     document.title = `${titre} — Model Arena`;
     $("titre").textContent = titre;
-    $("date").textContent = challengeName;
     $("sous-titre").textContent = board
       ? `Lancé le ${fmtDate(board.timestamp)} · ${results.length} modèle${results.length > 1 ? "s" : ""}`
       : "Pas encore lancé";
+
     $("consigne").textContent = consigne;
+    $("copier").addEventListener("click", () => {
+      navigator.clipboard.writeText(consigne).then(() => {
+        $("copier").textContent = "copié";
+        setTimeout(() => ($("copier").textContent = "Copier"), 1100);
+      });
+    });
 
     if (results.length === 0) {
-      $("cartes").append(el("p", { class: "lede", text: "Pas encore de résultats — scripts/run-challenge pour lancer l'arène." }));
+      $("livrables").append(
+        el("p", { class: "lede", text: "Pas encore de résultats — scripts/run-challenge pour lancer l'arène." })
+      );
     } else {
+      const blocs = await Promise.all(results.map(livrable));
+      blocs.forEach((b) => $("livrables").append(b));
+
+      $("rapport-section").hidden = false;
       const durees = results.filter((r) => r.duration_seconds > 0);
       const rapide = durees.length >= 2 ? durees.reduce((a, b) => (a.duration_seconds <= b.duration_seconds ? a : b)) : null;
-      results.forEach((r, i) => $("cartes").append(carte(r, i, r === rapide)));
-
-      const lignes = lectureComparee(results);
-      if (lignes.length > 0) {
-        $("analyse-section").hidden = false;
-        lignes.forEach((l) => $("analyse").append(el("li", { text: l })));
-      }
-
-      $("details-section").hidden = false;
-      const blocs = await Promise.all(results.map(detail));
-      blocs.forEach((b) => $("details").append(b));
+      results.forEach((r) => $("rapport-lignes").append(ligneRapport(r, r === rapide)));
+      lectureComparee(results).forEach((l) => $("analyse").append(el("li", { text: l })));
     }
 
     $("etat").hidden = true;
@@ -256,108 +230,113 @@ import Base from "../layouts/Base.astro";
   .entete {
     margin-bottom: var(--space-lg);
   }
-  .retour {
-    display: inline-block;
-    text-decoration: none;
-    margin-bottom: var(--space-md);
-  }
-  .retour:hover {
-    color: var(--fg);
-  }
   .entete h1 {
     font-size: var(--text-titre);
-    margin: 0.3em 0 0.35em;
+    margin: 0 0 0.35em;
   }
   .lede {
     color: var(--muted);
   }
 
   section {
-    margin-block: var(--space-lg);
+    margin-block: var(--space-lg) var(--space-xl);
   }
   .section-titre {
     font-size: 1.5rem;
     margin-bottom: var(--space-md);
   }
 
-  .consigne {
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    line-height: 1.6;
-    color: var(--muted);
-    background: rgba(250, 248, 243, 0.045);
-    border: 1px solid var(--rule);
-    border-radius: var(--radius-md);
-    padding: var(--space-md);
-    max-height: 16rem;
-    overflow: auto;
-    white-space: pre-wrap;
-    margin: 0;
-  }
-
-  .cartes {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-    gap: var(--space-md);
-  }
+  /* Cartes (doctrine composants) : surface détachée, le quadrillage reste visible à travers. */
   .carte {
     border: 1px solid var(--rule);
-    border-radius: var(--radius-lg);
-    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: rgba(250, 248, 243, 0.03);
+    padding: clamp(16px, 2.5vw, 32px);
+  }
+
+  /* Les livrables : une carte par modèle, côte à côte dès que la place le permet. */
+  .livrables {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: var(--space-lg);
+  }
+  .livrable {
+    max-width: 960px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-md);
   }
-  /* Un seul foyer vermillon par composition : le modèle le plus rapide. */
-  .carte.focal {
-    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  .carte.focal .rang {
-    color: var(--accent);
-  }
-  .carte-entete {
+  .livrable-entete {
     display: flex;
-    align-items: baseline;
-    gap: var(--space-sm);
-  }
-  .carte-entete h3 {
-    font-size: 1.35rem;
-    flex: 1;
-  }
-  .stats {
-    margin: 0;
-    display: grid;
-    gap: 0.35em;
-  }
-  .stat {
-    display: flex;
+    align-items: center;
     justify-content: space-between;
     gap: var(--space-md);
-    border-bottom: 1px solid var(--rule);
-    padding-bottom: 0.35em;
+    margin-bottom: var(--space-md);
   }
-  .stat dt {
-    color: var(--muted);
-    font-size: 0.9rem;
+  .livrable-entete h3 {
+    font-size: 1.45rem;
   }
-  .stat dd {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-  }
-  .capture img {
+  .livrable iframe {
     display: block;
     width: 100%;
-    border-radius: var(--radius-md);
+    aspect-ratio: 4 / 3;
     border: 1px solid var(--rule);
+    border-radius: var(--radius-sm, 2px);
+    background: #fff;
   }
-  .capture p {
+  .livrable-vide {
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius-sm, 2px);
+    padding: var(--space-lg);
     margin: 0;
+    text-align: center;
+    flex: 1;
+    display: grid;
+    place-items: center;
+  }
+  @media (max-width: 620px) {
+    .livrables {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Le rapport : la donnée se lit à l'horizontale, le filet porte les lignes. */
+  .rapport {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .rapport th {
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 var(--space-md) var(--space-sm) 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .rapport td {
+    padding: var(--space-sm) var(--space-md) var(--space-sm) 0;
+    border-bottom: 1px solid var(--rule);
+    font-variant-numeric: tabular-nums;
+  }
+  .rapport .num {
+    text-align: right;
+  }
+  .rapport td.accent {
+    color: var(--accent);
+  }
+  .rapport tbody tr {
+    transition: background var(--motion-vif) ease;
+  }
+  .rapport tbody tr:hover {
+    background: rgba(250, 248, 243, 0.04);
   }
 
   .analyse {
     list-style: none;
-    margin: 0;
+    margin: var(--space-md) 0 0;
     padding: 0;
   }
   .analyse li {
@@ -368,39 +347,26 @@ import Base from "../layouts/Base.astro";
     border-top: 1px solid var(--rule);
   }
 
-  .details {
-    display: grid;
-    gap: var(--space-md);
-  }
-  .details .detail {
-    border: 1px solid var(--rule);
-    border-radius: var(--radius-lg);
-    padding: var(--space-md);
-  }
-  .details .detail-entete {
+  /* La consigne : le texte entier, rien ne défile. */
+  .consigne-entete {
     display: flex;
-    justify-content: space-between;
     align-items: baseline;
+    justify-content: space-between;
     gap: var(--space-md);
-    flex-wrap: wrap;
     margin-bottom: var(--space-md);
+    max-width: 920px;
   }
-  .details .detail-entete h3 {
-    font-size: 1.35rem;
+  .consigne-entete .section-titre {
+    margin-bottom: 0;
   }
-  .details .apercu iframe {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius-md);
-    background: #fff;
-  }
-  .details .lien-livrable {
-    display: inline-block;
-    margin-top: var(--space-sm);
-    margin-right: var(--space-md);
-  }
-  .details .lien-livrable:hover {
-    color: var(--fg);
+  .consigne {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--muted);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin: 0;
+    max-width: 920px;
   }
 </style>

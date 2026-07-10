@@ -1,0 +1,11 @@
+{
+  "model": "openrouter/openai/gpt-5.6-sol-pro",
+  "provider": "openrouter",
+  "label": "GPT 5.6 Sol Pro",
+  "challenge": "2026-07-10-penalty-shootout-3d",
+  "timestamp": "2026-07-10T22:13:31Z",
+  "duration_seconds": 183,
+  "screenshot": false,
+  "tokens": {"input_tokens": 38100, "output_tokens": 2700, "cache_read": 130400, "cache_write": 1500, "cost": 0.3448, "messages": 5},
+  "estimated_cost": 0.000000
+}

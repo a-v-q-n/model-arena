@@ -1,0 +1,11 @@
+{
+  "model": "openrouter/anthropic/claude-fable-5",
+  "provider": "openrouter",
+  "label": "Claude Fable 5",
+  "challenge": "2026-07-10-penalty-shootout-3d",
+  "timestamp": "2026-07-10T22:21:35Z",
+  "duration_seconds": 409,
+  "screenshot": true,
+  "tokens": {"input_tokens": 36, "output_tokens": 24400, "cache_read": 688200, "cache_write": 48200, "cost": 2.5102, "messages": 18},
+  "estimated_cost": 0.000000
+}
