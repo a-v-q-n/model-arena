@@ -3,9 +3,14 @@ name: arena
 description: Arena d'évaluation — crée et exécute des challenges sur plusieurs modèles en parallèle
 ---
 
-# Arena — Interaction
+# Arena
 
-Tu es l'interface de l'arena. L'utilisateur interagit avec toi en langage naturel. Tu pilotes tout.
+Tous les chemins sont **relatifs à la racine du projet** (là où se trouvent `challenges/` et `scripts/`).
+
+## Convention de nommage
+
+Les dossiers de challenge sont automatiquement préfixés par la date : `YYYY-MM-DD-<name>`.
+Exemple : `new-challenge hello-world` → `challenges/2026-07-10-hello-world/`
 
 ## Créer un challenge
 
@@ -15,10 +20,11 @@ Quand l'utilisateur dit "j'ai une idée de challenge" (ou équivalent) :
 2. **Pose 2-3 questions** pour clarifier : contexte, format attendu, critères de succès.
 3. **Montre les modèles disponibles** : exécute `opencode models` et affiche les résultats. Demande "lesquels veux-tu tester ?"
 4. **Génère un nom** à partir du brief (snake_case).
-5. **Crée le challenge** :
-   - Écris `challenges/<nom>/challenge.md` avec la consigne proprement structurée
-   - Écris `challenges/<nom>/models.json` avec les modèles choisis
-   - Écris `mkdir -p challenges/<nom>/runs`
+5. **Crée le challenge** avec le script :
+   ```bash
+   bash scripts/new-challenge <nom>
+   ```
+   Cela crée `challenges/YYYY-MM-DD-<nom>/` avec `challenge.md`, `models.json` et `runs/`.
 6. Propose : "Je lance le test tout de suite ?"
 
 ## Lancer un challenge
@@ -27,11 +33,11 @@ Quand l'utilisateur dit "lance le challenge" (ou équivalent) :
 
 1. **Liste les challenges** disponibles : `ls challenges/`
 2. **Demande lequel** s'il y en a plusieurs.
-3. **Exécute** avec la commande existante :
+3. **Exécute** avec la commande :
    ```bash
-   bash scripts/run-challenge <nom>
+   bash scripts/run-challenge <nom-complet-avec-date>
    ```
-4. **Affiche le leaderboard** à la fin : `cat challenges/<nom>/leaderboard.json`
+4. **Affiche le résultat** et ouvre la page récap.
 
 Si l'utilisateur préfère que tu lances toi-même les modèles via des sub-agents (sans le script bash) :
 
@@ -52,4 +58,41 @@ Si l'utilisateur demande "ajoute le modèle X au challenge Y" :
 
 ## Tarifs
 
-Les prix par modèle sont dans `scripts/pricing.json` ($/M tokens). Tu peux t'en servir pour estimer le coût d'un run.
+Les prix par modèle sont dans `scripts/pricing.json` ($/M tokens). Le script `run-challenge` estime automatiquement le coût de chaque run à partir des tokens consommés.
+
+## Statistiques
+
+Le script `run-challenge` capture automatiquement pour chaque modèle :
+- **Durée** d'exécution (secondes)
+- **Tokens** consommés (input, output, cache) via `opencode stats --models`
+- **Coût estimé** à partir de `pricing.json`
+- **Capture d'écran** du résultat HTML
+
+Tout est enregistré dans `runs/<slug>/meta.json` et visible dans `recap.html`.
+
+## Page récapitulative
+
+La page `recap.html` (générée automatiquement) inclut :
+- Le prompt du challenge
+- Les résultats avec durée, tokens et coût
+- Une analyse comparative entre modèles (vitesse, tokens, efficacité)
+- Un aperçu du résultat HTML de chaque modèle
+
+Design : fond clair, typographie Inter, mise en page cohérente, responsive.
+
+## Structure d'un challenge
+
+```
+challenges/YYYY-MM-DD-<name>/
+├── challenge.md         # instruction donnée à chaque agent
+├── models.json          # modèles à tester
+├── leaderboard.json     # comparatif agrégé
+├── recap.html           # page récap visuelle
+└── runs/
+    ├── <model-slug>/
+    │   ├── index.html   # résultat du modèle
+    │   ├── output.md    # log de l'agent
+    │   ├── screenshot.png
+    │   └── meta.json    # durée, tokens, coût
+    └── ...
+```

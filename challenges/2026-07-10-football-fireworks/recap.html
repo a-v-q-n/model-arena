@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Récap — 2026-07-10-football-fireworks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #f5f5f0;
+    color: #1a1a2e;
+    line-height: 1.6;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 2rem; }
+  .header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #1a1a2e;
+    letter-spacing: -0.02em;
+  }
+  .header .subtitle {
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+  }
+  .back-link {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: #4361ee;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .back-link:hover { text-decoration: underline; }
+
+  /* Prompt */
+  .prompt-box {
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+    white-space: pre-wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: #444;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .prompt-box::-webkit-scrollbar { width: 6px; }
+  .prompt-box::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+
+  /* Section titles */
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #1a1a2e;
+    letter-spacing: -0.01em;
+  }
+
+  /* Analysis */
+  .analysis {
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+  }
+  .analysis-item {
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    color: #333;
+  }
+  .analysis-item + .analysis-item {
+    border-top: 1px solid #f0f0e8;
+  }
+  .analysis-item strong { color: #1a1a2e; }
+
+  /* Leaderboard grid */
+  .leaderboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  /* Card */
+  .card {
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .card-rank {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #4361ee;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+  .card .stats {
+    width: 100%;
+    font-size: 0.82rem;
+    color: #555;
+    margin-bottom: 0.75rem;
+  }
+  .card .stats td {
+    padding: 0.2rem 0;
+  }
+  .card .stats td:first-child { color: #888; width: 40%; }
+  .card .stats td:last-child { text-align: right; }
+  .card .stats strong { color: #1a1a2e; font-weight: 600; }
+  .card img {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #e0e0d8;
+    margin-top: 0.25rem;
+  }
+  .no-result {
+    color: #999;
+    font-style: italic;
+    padding: 1.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+  }
+
+  /* Details */
+  .details { margin-bottom: 2rem; }
+  .model-detail {
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .detail-header h3 { font-size: 1rem; font-weight: 600; }
+  .detail-meta {
+    font-size: 0.78rem;
+    color: #888;
+    background: #f5f5f0;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+  .preview iframe {
+    width: 100%;
+    height: 450px;
+    border: 1px solid #e0e0d8;
+    border-radius: 8px;
+    background: #fff;
+  }
+  .output-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: #4361ee;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .output-link:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem 0.75rem; }
+    .header h1 { font-size: 1.4rem; }
+    .leaderboard { grid-template-columns: 1fr; }
+    .preview iframe { height: 300px; }
+    .detail-header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <a class="back-link" href="..">← Retour aux challenges</a>
+  <h1>2026-07-10-football-fireworks</h1>
+  <p class="subtitle">Lancé le 2026-07-10T20:55:35Z</p>
+</div>
+
+<div class="prompt-box"># Football Fireworks 3D
+
+## Contexte
+
+Tu es un développeur web spécialisé Three.js. Tu dois créer une scène 3D interactive pour une célébration sportive.
+
+## Consigne
+
+Crée une page HTML unique qui affiche une scène 3D avec :
+
+1. **Un ballon de foot** au centre de la scène, utilisant un modèle 3D gratuit (trouvable sur des CDN comme Poly Pizza, Sketchfab, ou généré procéduralement avec Three.js).
+2. **Des feux d&#x27;artifice** animés qui explosent dans le ciel au-dessus du ballon.
+3. **Un éclairage** et des ombres pour un rendu réaliste.
+4. **Un fond** (ciel de nuit, stade, ou ciel étoilé).
+
+### Contraintes techniques
+
+- Charge les modèles 3D depuis des URLs CDN gratuites (pas de fichiers locaux).
+- Inclus tout le code dans un seul fichier HTML (Three.js chargé via CDN).
+- La scène doit être animée (le ballon peut tourner lentement, les feux d&#x27;artifice explosent en continu).
+- Ajoute des contrôles simples (OrbitControls) pour que l&#x27;utilisateur puisse tourner autour de la scène.
+
+## Critères d&#x27;évaluation
+
+- La scène s&#x27;affiche correctement sans erreur.
+- Le ballon de foot est reconnaissable (forme sphérique avec motifs pentagones).
+- Les feux d&#x27;artifice sont visuellement convaincants (particules colorées).
+- L&#x27;animation est fluide (60 fps).
+- Le code est propre et bien structuré.
+
+## Format de sortie attendu
+
+Un seul fichier HTML (`index.html`) dans le répertoire du challenge, prêt à être ouvert dans un navigateur.
+</div>
+
+<h2 class="section-title">📊 Résultats</h2>
+<div class="leaderboard">
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-rank">1</span>
+    <h2>DeepSeek V4 Flash (gratuit)</h2>
+  </div>
+  <table class="stats">
+    <tr><td>Durée</td><td><strong>183s</strong></td></tr>
+    <tr><td>Tokens (in)</td><td><strong>15K</strong></td></tr>
+    <tr><td>Tokens (out)</td><td><strong>25K</strong></td></tr>
+    <tr><td>Total tokens</td><td><strong>40K</strong></td></tr>
+    <tr><td>Coût estimé</td><td><strong>Gratuit</strong></td></tr>
+  </table>
+  <img src="runs/opencode-deepseek-v4-flash-free/screenshot.png" alt="Screenshot DeepSeek V4 Flash (gratuit)">
+</div>
+<div class="card">
+  <div class="card-header">
+    <span class="card-rank">2</span>
+    <h2>Mimo v2.5 (gratuit)</h2>
+  </div>
+  <table class="stats">
+    <tr><td>Durée</td><td><strong>108s</strong></td></tr>
+    <tr><td>Tokens (in)</td><td><strong>8K</strong></td></tr>
+    <tr><td>Tokens (out)</td><td><strong>6K</strong></td></tr>
+    <tr><td>Total tokens</td><td><strong>15K</strong></td></tr>
+    <tr><td>Coût estimé</td><td><strong>Gratuit</strong></td></tr>
+  </table>
+  <img src="runs/opencode-mimo-v2.5-free/screenshot.png" alt="Screenshot Mimo v2.5 (gratuit)">
+</div>
+</div>
+
+<h2 class="section-title">🔍 Analyse comparative</h2>
+<div class="analysis">
+
+<div class="analysis-item">
+  <strong>⏱ Vitesse :</strong> Mimo v2.5 (gratuit) est 1.7x plus rapide que DeepSeek V4 Flash (gratuit) (108s vs 183s)
+</div>
+<div class="analysis-item">
+  <strong>🎯 Tokens :</strong> DeepSeek V4 Flash (gratuit) a utilisé 2.7x plus de tokens que Mimo v2.5 (gratuit) (40K vs 15K)
+</div>
+<div class="analysis-item">
+  <strong>⚡ Efficacité :</strong> DeepSeek V4 Flash (gratuit) produit 39700 tokens en 183s (217/s) vs Mimo v2.5 (gratuit) (135/s)
+</div>
+</div>
+
+<h2 class="section-title">📁 Détails par modèle</h2>
+<div class="details">
+
+<div class="model-detail">
+  <div class="detail-header">
+    <h3>DeepSeek V4 Flash (gratuit)</h3>
+    <span class="detail-meta">183s · 40K tokens · Gratuit</span>
+  </div>
+  <div class="preview">
+    <iframe src="runs/opencode-deepseek-v4-flash-free/index.html" title="Résultat DeepSeek V4 Flash (gratuit)"></iframe>
+  </div>
+  <a class="output-link" href="runs/opencode-deepseek-v4-flash-free/output.md">📄 Voir le résumé (output.md) →</a>
+</div>
+<div class="model-detail">
+  <div class="detail-header">
+    <h3>Mimo v2.5 (gratuit)</h3>
+    <span class="detail-meta">108s · 15K tokens · Gratuit</span>
+  </div>
+  <div class="preview">
+    <iframe src="runs/opencode-mimo-v2.5-free/index.html" title="Résultat Mimo v2.5 (gratuit)"></iframe>
+  </div>
+  <a class="output-link" href="runs/opencode-mimo-v2.5-free/output.md">📄 Voir le résumé (output.md) →</a>
+</div>
+</div>
+
+</div>
+</body>
+</html>

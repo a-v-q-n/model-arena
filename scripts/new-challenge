@@ -4,10 +4,16 @@ set -euo pipefail
 NAME="${1:-}"
 if [ -z "$NAME" ]; then
   echo "Usage: new-challenge <name>"
+  echo ""
+  echo "Crée un challenge avec un préfixe de date (YYYY-MM-DD-<name>)"
+  echo "Exemple : new-challenge hello-world → challenges/2026-07-10-hello-world/"
   exit 1
 fi
 
-DIR="challenges/$NAME"
+DATE_PREFIX=$(date +%Y-%m-%d)
+DIR_NAME="${DATE_PREFIX}-${NAME}"
+DIR="challenges/$DIR_NAME"
+
 if [ -d "$DIR" ]; then
   echo "Error: $DIR already exists"
   exit 1
@@ -41,19 +47,20 @@ cat > "$DIR/models.json" << MODELS
 {
   "models": [
     {
-      "id": "openrouter/anthropic/claude-sonnet-4",
-      "provider": "openrouter",
-      "label": "Claude Sonnet 4"
+      "id": "opencode/deepseek-v4-flash-free",
+      "provider": "opencode",
+      "label": "DeepSeek V4 Flash (gratuit)"
     },
     {
-      "id": "openrouter/openai/gpt-4o",
-      "provider": "openrouter",
-      "label": "GPT-4o"
+      "id": "opencode/mimo-v2.5-free",
+      "provider": "opencode",
+      "label": "Mimo v2.5 (gratuit)"
     }
   ]
 }
 MODELS
 
-echo "✓ Challenge '$NAME' créé dans $DIR/"
+echo "✓ Challenge '$DIR_NAME' créé dans $DIR/"
 echo "  → Édite $DIR/challenge.md pour définir la tâche"
 echo "  → Configure $DIR/models.json pour lister les modèles"
+echo "  → Lance avec : bash scripts/run-challenge $DIR_NAME"

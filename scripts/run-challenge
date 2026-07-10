@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 NAME="${1:-}"
-TIMEOUT_PER_RUN="${2:-180}"  # default 3min per model
+TIMEOUT_PER_RUN="${2:-180}"
 
 if [ -z "$NAME" ]; then
   echo "Usage: run-challenge <challenge-name> [timeout-seconds]"
@@ -32,22 +32,42 @@ PROMPT=$(cat "$CHALLENGE_FILE")
 mkdir -p "$RUNS_DIR"
 RESULTS_JSON="$DIR/leaderboard.json"
 
-echo "🏟️  Arena — challenge '$NAME'"
+echo "----------------------------------------"
+echo "  Arena — challenge '$NAME'"
+echo "----------------------------------------"
 echo ""
 
-MODELS=$(python3 -c "
-import json
+# Save initial stats snapshot
+STATS_BEFORE=$(mktemp)
+opencode stats --models 2>/dev/null > "$STATS_BEFORE" || true
+
+# Read models into an array (JSON per line) to avoid stdin conflicts
+MODELS_RAW=$(python3 -c "
+import json, sys
 with open('$MODELS_FILE') as f:
     data = json.load(f)
 for m in data['models']:
-    print(f\"{m['id']}|{m.get('provider','')}|{m.get('label',m['id'])}\")
+    s = json.dumps(m)
+    sys.stdout.write(s + '\n')
 ")
+
+declare -a MODEL_ITEMS=()
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  MODEL_ITEMS+=("$line")
+done <<< "$MODELS_RAW"
 
 declare -a RESULTS=()
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 PORT=18765
 
-while IFS='|' read -r MODEL_ID PROVIDER LABEL; do
+for MODEL_ITEM in "${MODEL_ITEMS[@]}"; do
+  IFS='|' read -r MODEL_ID LABEL PROVIDER < <(echo "$MODEL_ITEM" | python3 -c "
+import sys, json, os
+m = json.loads(sys.stdin.read())
+print(m['id'] + '|' + m.get('label', m['id']) + '|' + m.get('provider', ''))
+")
+
   [ -z "$MODEL_ID" ] && continue
   MODEL_SLUG=$(echo "$MODEL_ID" | tr '/' '-')
   MODEL_DIR="$RUNS_DIR/$MODEL_SLUG"
@@ -68,20 +88,19 @@ $PROMPT
 2. Sauvegarde tes livrables dans $MODEL_DIR/
 3. Crée $MODEL_DIR/output.md avec le résumé de ton travail
 4. NE touche à rien en dehors de $MODEL_DIR
-5. Quand tu as fini, écris '---CHALLENGE COMPLETE---'"
+5. Quand tu as finis, écris '---CHALLENGE COMPLETE---'"
 
-  # Run opencode (background + timeout)
   LOG_FILE="/tmp/arena-${MODEL_ID//\//-}.log"
   opencode run "$AGENT_PROMPT" \
     --model "$MODEL_ID" \
     --title "arena: $NAME / $LABEL" \
     --auto \
     --dir "$(pwd)" \
-    --format default > "$LOG_FILE" 2>&1 &
+    --format default < /dev/null > "$LOG_FILE" 2>&1 &
   OPENCODE_PID=$!
 
-  # Wait with timeout (seconds)
   ELAPSED=0
+  TIMED_OUT=false
   while kill -0 "$OPENCODE_PID" 2>/dev/null; do
     sleep 1
     ELAPSED=$((ELAPSED + 1))
@@ -90,6 +109,7 @@ $PROMPT
       kill "$OPENCODE_PID" 2>/dev/null || true
       sleep 1
       kill -9 "$OPENCODE_PID" 2>/dev/null || true
+      TIMED_OUT=true
       break
     fi
   done
@@ -99,28 +119,54 @@ $PROMPT
   END_TS=$(date +%s)
   DURATION=$((END_TS - START_TS))
 
-  # Kill any lingering python HTTP servers on our ports
+  # Extract token usage from stats
+  STATS_AFTER=$(mktemp)
+  opencode stats --models 2>/dev/null > "$STATS_AFTER" || true
+  TOKEN_JSON=$(python3 scripts/token-diff.py "$MODEL_ID" "$STATS_BEFORE" "$STATS_AFTER" 2>/dev/null || echo '{}')
+  rm -f "$STATS_AFTER"
+
+  # Calculate estimated cost from pricing.json
+  INPUT_TOKENS=$(echo "$TOKEN_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('input_tokens', 0))" 2>/dev/null || echo "0")
+  OUTPUT_TOKENS=$(echo "$TOKEN_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output_tokens', 0))" 2>/dev/null || echo "0")
+  ESTIMATED_COST=$(python3 -c "
+import json
+with open('$PRICING_FILE') as f:
+    pricing = json.load(f)
+model_id = '$MODEL_ID'
+rate = pricing.get(model_id, {})
+in_rate = rate.get('input', 0)
+out_rate = rate.get('output', 0)
+in_tokens = $INPUT_TOKENS
+out_tokens = $OUTPUT_TOKENS
+cost = (in_tokens / 1_000_000 * in_rate) + (out_tokens / 1_000_000 * out_rate)
+print(f'{cost:.6f}')
+" 2>/dev/null || echo "0")
+
+  # Kill any lingering HTTP servers
   lsof -ti tcp:$PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
 
-  # Screenshot (si playwright est installé)
+  # Screenshot
   SCREENSHOT_EXISTS="false"
   HTML_FILE=$(find "$MODEL_DIR" -name "*.html" -maxdepth 1 | head -1)
   if [ -n "$HTML_FILE" ]; then
     if [ ! -d "node_modules/playwright" ]; then
-      npm install playwright 2>/dev/null
+      npm install playwright < /dev/null 2>/dev/null || true
     fi
     if [ -d "node_modules/playwright" ]; then
       echo "   📸 Capture d'écran..."
-      npx playwright install chromium 2>/dev/null || true
-      python3 -m http.server "$PORT" --directory "$MODEL_DIR" &
+      npx playwright install chromium < /dev/null 2>/dev/null || true
+      python3 -m http.server "$PORT" --directory "$MODEL_DIR" < /dev/null &
       SERVER_PID=$!
       sleep 1
       node scripts/screenshot.mjs "http://localhost:$PORT/index.html" "$MODEL_DIR/screenshot.png" 2>/dev/null && SCREENSHOT_EXISTS="true" || true
       kill "$SERVER_PID" 2>/dev/null || true
+      wait "$SERVER_PID" 2>/dev/null || true
     fi
   fi
 
   echo "✅  [$LABEL] terminé en ${DURATION}s"
+  TOKEN_SUM=$((INPUT_TOKENS + OUTPUT_TOKENS))
+  echo "   Tokens: ${TOKEN_SUM} | Coût estimé: \$${ESTIMATED_COST}"
 
   cat > "$MODEL_DIR/meta.json" << META
 {
@@ -130,22 +176,33 @@ $PROMPT
   "challenge": "$NAME",
   "timestamp": "$TIMESTAMP",
   "duration_seconds": $DURATION,
-  "screenshot": $SCREENSHOT_EXISTS
+  "screenshot": $SCREENSHOT_EXISTS,
+  "tokens": $TOKEN_JSON,
+  "estimated_cost": $ESTIMATED_COST
 }
 META
 
-  RESULTS+=("{\"model\":\"$MODEL_ID\",\"slug\":\"$MODEL_SLUG\",\"provider\":\"$PROVIDER\",\"label\":\"$LABEL\",\"duration_seconds\":$DURATION,\"screenshot\":$SCREENSHOT_EXISTS}")
-done <<< "$MODELS"
+  RESULTS+=("{\"model\":\"$MODEL_ID\",\"slug\":\"$MODEL_SLUG\",\"provider\":\"$PROVIDER\",\"label\":\"$LABEL\",\"duration_seconds\":$DURATION,\"screenshot\":$SCREENSHOT_EXISTS,\"tokens\":$TOKEN_JSON,\"estimated_cost\":$ESTIMATED_COST}")
+done
 
-# Build leaderboard
+rm -f "$STATS_BEFORE"
+
+# Build leaderboard JSON
+TMP_RESULTS=$(mktemp)
+for r in "${RESULTS[@]}"; do
+  echo "$r" >> "$TMP_RESULTS"
+done
+
 JSON_RESULTS="["
 FIRST=true
-for r in "${RESULTS[@]}"; do
+while IFS= read -r r; do
+  [ -z "$r" ] && continue
   $FIRST || JSON_RESULTS+=","
   JSON_RESULTS+="$r"
   FIRST=false
-done
+done < "$TMP_RESULTS"
 JSON_RESULTS+="]"
+rm -f "$TMP_RESULTS"
 
 cat > "$RESULTS_JSON" << LEADERBOARD
 {
@@ -155,20 +212,427 @@ cat > "$RESULTS_JSON" << LEADERBOARD
 }
 LEADERBOARD
 
+# ─────────────────────────────────────────────────────────
+# Generate recap HTML (light theme, consistent layout)
+# ─────────────────────────────────────────────────────────
+RECAP_FILE="$DIR/recap.html"
+RECAP_TIMESTAMP=$(date -u)
+
+# Build model cards and detail sections via Python to avoid bash escaping hell
+python3 -c "
+import json, os, html
+
+with open('$RESULTS_JSON') as f:
+    data = json.load(f)
+
+challenge_name = data['challenge']
+results = data['results']
+timestamp = data['timestamp']
+
+with open('$CHALLENGE_FILE') as f:
+    prompt_text = f.read()
+
+with open('$PRICING_FILE') as f:
+    pricing = json.load(f)
+
+cards_html = ''
+details_html = ''
+analysis_items = []
+
+for r in results:
+    slug = r['slug']
+    label = r['label']
+    dur = r['duration_seconds']
+    has_ss = r.get('screenshot', False)
+    tokens = r.get('tokens', {})
+    cost = r.get('estimated_cost', 0)
+    inp = tokens.get('input_tokens', 0)
+    out = tokens.get('output_tokens', 0)
+    total_tokens = inp + out
+
+    # Format numbers
+    def fmt(n):
+        if n >= 1_000_000:
+            return f'{n/1_000_000:.1f}M'
+        elif n >= 1_000:
+            return f'{n/1_000:.0f}K'
+        return str(n)
+
+    inp_fmt = fmt(inp)
+    out_fmt = fmt(out)
+    cost_fmt = f'\${cost:.4f}' if cost > 0 else 'Gratuit'
+
+    ss_path = f'runs/{slug}/screenshot.png'
+    html_path = f'runs/{slug}/index.html'
+    output_path = f'runs/{slug}/output.md'
+
+    # Card
+    cards_html += f'''
+<div class=\"card\">
+  <div class=\"card-header\">
+    <span class=\"card-rank\">{results.index(r) + 1}</span>
+    <h2>{html.escape(label)}</h2>
+  </div>
+  <table class=\"stats\">
+    <tr><td>Durée</td><td><strong>{dur}s</strong></td></tr>
+    <tr><td>Tokens (in)</td><td><strong>{inp_fmt}</strong></td></tr>
+    <tr><td>Tokens (out)</td><td><strong>{out_fmt}</strong></td></tr>
+    <tr><td>Total tokens</td><td><strong>{fmt(total_tokens)}</strong></td></tr>
+    <tr><td>Coût estimé</td><td><strong>{cost_fmt}</strong></td></tr>
+  </table>'''
+
+    if has_ss:
+        cards_html += f'''
+  <img src=\"{ss_path}\" alt=\"Screenshot {html.escape(label)}\">'''
+    else:
+        cards_html += '''
+  <div class=\"no-result\">Aucune capture</div>'''
+
+    cards_html += '''
+</div>'''
+
+    # Detail
+    details_html += f'''
+<div class=\"model-detail\">
+  <div class=\"detail-header\">
+    <h3>{html.escape(label)}</h3>
+    <span class=\"detail-meta\">{dur}s · {fmt(total_tokens)} tokens · {cost_fmt}</span>
+  </div>'''
+
+    if os.path.exists(os.path.join('$DIR', html_path)):
+        details_html += f'''
+  <div class=\"preview\">
+    <iframe src=\"{html_path}\" title=\"Résultat {html.escape(label)}\"></iframe>
+  </div>'''
+    else:
+        details_html += '''
+  <div class=\"no-result\">Aucun fichier HTML produit</div>'''
+
+    if os.path.exists(os.path.join('$DIR', output_path)):
+        details_html += f'''
+  <a class=\"output-link\" href=\"{output_path}\">📄 Voir le résumé (output.md) →</a>'''
+
+    details_html += '''
+</div>'''
+
+    analysis_items.append({
+        'label': label,
+        'duration': dur,
+        'tokens': total_tokens,
+        'cost': cost,
+        'input_tokens': inp,
+        'output_tokens': out,
+    })
+
+# Generate analysis text
+analysis_html = ''
+if len(analysis_items) >= 2:
+    a = analysis_items[0]
+    b = analysis_items[1]
+    fastest = a if a['duration'] < b['duration'] else b
+    slowest = b if fastest['label'] == a['label'] else a
+    ratio = round(slowest['duration'] / max(fastest['duration'], 1), 1)
+    analysis_html += f'''
+<div class=\"analysis-item\">
+  <strong>⏱ Vitesse :</strong> {html.escape(fastest['label'])} est {ratio}x plus rapide que {html.escape(slowest['label'])} ({fastest['duration']}s vs {slowest['duration']}s)
+</div>'''
+
+    most_tokens = a if a['tokens'] > b['tokens'] else b
+    least_tokens = b if most_tokens['label'] == a['label'] else a
+    if least_tokens['tokens'] > 0:
+        token_ratio = round(most_tokens['tokens'] / least_tokens['tokens'], 1)
+    else:
+        token_ratio = 1
+    analysis_html += f'''
+<div class=\"analysis-item\">
+  <strong>🎯 Tokens :</strong> {html.escape(most_tokens['label'])} a utilisé {token_ratio}x plus de tokens que {html.escape(least_tokens['label'])} ({fmt(most_tokens['tokens'])} vs {fmt(least_tokens['tokens'])})
+</div>'''
+
+    eff_a = round(a['tokens'] / max(a['duration'], 1))
+    eff_b = round(b['tokens'] / max(b['duration'], 1))
+    more_eff = a if eff_a > eff_b else b
+    less_eff = b if more_eff['label'] == a['label'] else a
+    analysis_html += f'''
+<div class=\"analysis-item\">
+  <strong>⚡ Efficacité :</strong> {html.escape(more_eff['label'])} produit {more_eff['tokens']} tokens en {more_eff['duration']}s ({eff_a}/s) vs {html.escape(less_eff['label'])} ({eff_b}/s)
+</div>'''
+
+else:
+    analysis_html = '<div class=\"analysis-item\">Ajoute au moins 2 modèles pour une analyse comparative.</div>'
+
+prompt_escaped = html.escape(prompt_text)
+
+html_output = f'''<!DOCTYPE html>
+<html lang=\"fr\">
+<head>
+<meta charset=\"UTF-8\">
+<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+<title>Récap — {html.escape(challenge_name)}</title>
+<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">
+<link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap\" rel=\"stylesheet\">
+<style>
+  *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #f5f5f0;
+    color: #1a1a2e;
+    line-height: 1.6;
+    padding: 2rem 1rem;
+  }}
+  .container {{ max-width: 960px; margin: 0 auto; }}
+
+  /* Header */
+  .header {{ margin-bottom: 2rem; }}
+  .header h1 {{
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #1a1a2e;
+    letter-spacing: -0.02em;
+  }}
+  .header .subtitle {{
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+  }}
+  .back-link {{
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: #4361ee;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }}
+  .back-link:hover {{ text-decoration: underline; }}
+
+  /* Prompt */
+  .prompt-box {{
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+    white-space: pre-wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: #444;
+    max-height: 200px;
+    overflow-y: auto;
+  }}
+  .prompt-box::-webkit-scrollbar {{ width: 6px; }}
+  .prompt-box::-webkit-scrollbar-thumb {{ background: #ddd; border-radius: 3px; }}
+
+  /* Section titles */
+  .section-title {{
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #1a1a2e;
+    letter-spacing: -0.01em;
+  }}
+
+  /* Analysis */
+  .analysis {{
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+  }}
+  .analysis-item {{
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    color: #333;
+  }}
+  .analysis-item + .analysis-item {{
+    border-top: 1px solid #f0f0e8;
+  }}
+  .analysis-item strong {{ color: #1a1a2e; }}
+
+  /* Leaderboard grid */
+  .leaderboard {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }}
+
+  /* Card */
+  .card {{
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: box-shadow 0.2s;
+  }}
+  .card:hover {{ box-shadow: 0 4px 16px rgba(0,0,0,0.06); }}
+  .card-header {{
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }}
+  .card-rank {{
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #4361ee;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }}
+  .card h2 {{
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }}
+  .card .stats {{
+    width: 100%;
+    font-size: 0.82rem;
+    color: #555;
+    margin-bottom: 0.75rem;
+  }}
+  .card .stats td {{
+    padding: 0.2rem 0;
+  }}
+  .card .stats td:first-child {{ color: #888; width: 40%; }}
+  .card .stats td:last-child {{ text-align: right; }}
+  .card .stats strong {{ color: #1a1a2e; font-weight: 600; }}
+  .card img {{
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #e0e0d8;
+    margin-top: 0.25rem;
+  }}
+  .no-result {{
+    color: #999;
+    font-style: italic;
+    padding: 1.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+  }}
+
+  /* Details */
+  .details {{ margin-bottom: 2rem; }}
+  .model-detail {{
+    background: #fff;
+    border: 1px solid #e0e0d8;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }}
+  .detail-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }}
+  .detail-header h3 {{ font-size: 1rem; font-weight: 600; }}
+  .detail-meta {{
+    font-size: 0.78rem;
+    color: #888;
+    background: #f5f5f0;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }}
+  .preview iframe {{
+    width: 100%;
+    height: 450px;
+    border: 1px solid #e0e0d8;
+    border-radius: 8px;
+    background: #fff;
+  }}
+  .output-link {{
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: #4361ee;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }}
+  .output-link:hover {{ text-decoration: underline; }}
+
+  @media (max-width: 640px) {{
+    body {{ padding: 1rem 0.75rem; }}
+    .header h1 {{ font-size: 1.4rem; }}
+    .leaderboard {{ grid-template-columns: 1fr; }}
+    .preview iframe {{ height: 300px; }}
+    .detail-header {{ flex-direction: column; align-items: flex-start; }}
+  }}
+</style>
+</head>
+<body>
+<div class=\"container\">
+
+<div class=\"header\">
+  <a class=\"back-link\" href=\"..\">← Retour aux challenges</a>
+  <h1>{html.escape(challenge_name)}</h1>
+  <p class=\"subtitle\">Lancé le {timestamp}</p>
+</div>
+
+<div class=\"prompt-box\">{prompt_escaped}</div>
+
+<h2 class=\"section-title\">📊 Résultats</h2>
+<div class=\"leaderboard\">
+{cards_html}
+</div>
+
+<h2 class=\"section-title\">🔍 Analyse comparative</h2>
+<div class=\"analysis\">
+{analysis_html}
+</div>
+
+<h2 class=\"section-title\">📁 Détails par modèle</h2>
+<div class=\"details\">
+{details_html}
+</div>
+
+</div>
+</body>
+</html>'''
+
+with open('$RECAP_FILE', 'w') as f:
+    f.write(html_output)
+
+print(f'📄 Page récap : $RECAP_FILE')
+"
+
+# Print results
 echo ""
 echo "📊  Résultats :"
 echo ""
-printf "%-35s %12s %10s\n" "Modèle" "Temps" "Capture"
-printf "%-35s %12s %10s\n" "-----------------------------------" "------------" "----------"
+printf "%-35s %8s %10s %10s %s\n" "Modèle" "Temps" "Tokens" "Coût" "Capture"
+printf "%-35s %8s %10s %10s %s\n" "-----------------------------------" "--------" "----------" "----------" "--------"
+
 python3 -c "
 import json
 with open('$RESULTS_JSON') as f:
     data = json.load(f)
-for r in sorted(data['results'], key=lambda x: x['duration_seconds']):
+for r in sorted(data['results'], key=lambda x: x.get('duration_seconds', 0)):
     s = '✅' if r.get('screenshot') else '❌'
-    print(f\"{r['label']:35s} {r['duration_seconds']:8d}s  {s:>8s}\")
+    label = r.get('label', r['model'])
+    dur = r.get('duration_seconds', 0)
+    tokens = r.get('tokens', {})
+    inp = tokens.get('input_tokens', 0)
+    out = tokens.get('output_tokens', 0)
+    total = inp + out
+    if total >= 1_000_000:
+        tf = f'{total/1_000_000:.1f}M'
+    elif total >= 1_000:
+        tf = f'{total/1_000:.0f}K'
+    else:
+        tf = str(total)
+    cost = r.get('estimated_cost', 0)
+    cf = f'\${cost:.4f}' if cost > 0 else 'Gratuit'
+    print(f'{label:35s} {dur:6d}s  {tf:>8s} {cf:>10s} {s:>8s}')
 "
 
 echo ""
 echo "📁  Résultats détaillés : $RUNS_DIR/"
 echo "📊  Leaderboard : $RESULTS_JSON"
+echo "📄  Page récap : $RECAP_FILE"

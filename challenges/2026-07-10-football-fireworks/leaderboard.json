@@ -1,0 +1,5 @@
+{
+  "challenge": "2026-07-10-football-fireworks",
+  "timestamp": "2026-07-10T20:55:35Z",
+  "results": [{"model":"opencode/deepseek-v4-flash-free","slug":"opencode-deepseek-v4-flash-free","provider":"opencode","label":"DeepSeek V4 Flash (gratuit)","duration_seconds":183,"screenshot":true,"tokens":{"input_tokens": 14600, "output_tokens": 25100, "cache_read": 100000, "cache_write": 0, "cost": 0.0, "messages": 3},"estimated_cost":0.000000},{"model":"opencode/mimo-v2.5-free","slug":"opencode-mimo-v2.5-free","provider":"opencode","label":"Mimo v2.5 (gratuit)","duration_seconds":108,"screenshot":true,"tokens":{"input_tokens": 8300, "output_tokens": 6300, "cache_read": 165200, "cache_write": 0, "cost": 0.0, "messages": 9},"estimated_cost":0.000000}]
+}
