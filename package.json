@@ -1,0 +1,8 @@
+{
+  "name": "model-arena",
+  "private": true,
+  "description": "Arena for testing AI agents across different models",
+  "dependencies": {
+    "playwright": "^1.52.0"
+  }
+}

@@ -5,82 +5,46 @@ description: Arena d'évaluation — crée et exécute des challenges sur plusie
 
 # Arena — Test d'agents
 
-Structure d'un challenge :
+## Commandes
 
-```
-challenges/<name>/
-├── challenge.md         # instruction donnée à chaque agent
-├── models.json          # modèles à tester
-└── runs/
-    ├── <model-id>/      # résultat d'un modèle
-    │   ├── output.md
-    │   ├── screenshot.png
-    │   └── meta.json
-    └── leaderboard.json # comparatif agrégé
-```
+| Commande | Action |
+|---|---|
+| `/new-challenge <nom>` | Crée un nouveau challenge |
+| `/run-challenge <nom>` | Exécute un challenge sur tous les modèles |
 
-## Créer un challenge
+Depuis le terminal (en dehors d'opencode) :
 
-```
-scripts/new-challenge <name>
+```bash
+bash scripts/new-challenge <nom>        # créer
+bash scripts/run-challenge <nom>        # exécuter
+bash scripts/run-challenge <nom> 300    # avec timeout 5min
 ```
 
-Ça crée `challenges/<name>/` avec `challenge.md` et `models.json` prêts à remplir.
-
-## Exécuter un challenge
-
-Le workflow est le suivant :
-
-1. Lis `challenges/<name>/challenge.md` et `challenges/<name>/models.json`
-2. Pour chaque modèle listé dans `models.json`, lance **un sub-agent en parallèle** via le Task tool
-3. Chaque sub-agent reçoit les instructions ci-dessous
-4. Une fois tous terminés, agrège dans `leaderboard.json`
-
-### Template pour le sub-agent (à adapter)
+## Structure d'un challenge
 
 ```
-Tu participes à un challenge d'agents.
-
-## Tâche
-{contenu de challenge.md}
-
-## Instructions de sortie
-1. Complète la tâche ci-dessus du mieux possible
-2. Sauvegarde ton travail et tes livrables dans challenges/{name}/runs/{model.id}/
-3. Crée challenges/{name}/runs/{model.id}/output.md avec :
-   - le résumé de ce que tu as produit
-   - les choix techniques que tu as faits
-   - les fichiers/dossiers créés
-4. Si applicable, prends une capture d'écran du résultat avec playwright MCP
-   et sauvegarde-la dans challenges/{name}/runs/{model.id}/screenshot.png
-5. Ne modifie rien en dehors de challenges/{name}/runs/{model.id}/
+challenges/<nom>/
+├── challenge.md      # la tâche à accomplir par chaque agent
+├── models.json       # modèles à tester (id, provider, label)
+└── runs/             # généré par run-challenge
+    ├── <model-id>/
+    │   ├── output.md       # sortie complète de l'agent
+    │   ├── screenshot.png  # capture d'écran (si applicable)
+    │   └── meta.json       # durée, présence capture
+    └── leaderboard.json    # comparatif
 ```
 
-### Après tous les sub-agents
+## Workflow
 
-Génère `challenges/{name}/runs/leaderboard.json` :
+1. **Créer** : `/new-challenge mon-truc`
+2. **Éditer** `challenges/mon-truc/challenge.md` avec la consigne précise
+3. **Configurer** `challenges/mon-truc/models.json` avec les modèles dispo
+4. **Lancer** : `/run-challenge mon-truc`
+5. **Analyser** les résultats dans `challenges/mon-truc/runs/leaderboard.json`
 
-```json
-{
-  "challenge": "nom",
-  "timestamp": "2026-07-10T...",
-  "results": [
-    {
-      "model": "model.id",
-      "time_seconds": 123,
-      "files_created": ["..."],
-      "screenshot": true
-    }
-  ]
-}
-```
+## Notes
 
-## Configuration des modèles
-
-Les modèles sont déclarés dans `challenges/<name>/models.json`. Chaque entrée peut préciser le provider et le pricing pour le calcul de coût.
-
-Les agents sont pré-configurés dans `opencode.json` sous `agent.*`. Le sub-agent utilise l'agent configuré avec le modèle correspondant au moment de l'appel. Pour alterner entre modèles, le skill adapte la config avant chaque lancement.
-
-## Tarifs (scripts/pricing.json)
-
-Les coûts sont calculés à partir de `scripts/pricing.json` en fonction des tokens utilisés. Le fichier contient les prix par modèle (`input` et `output` en $/M tokens).
+- Le script `run-challenge` lance les modèles **séquentiellement**
+- Les résultats incluent : temps d'exécution, capture d'écran, sortie brute
+- Pour les modèles payants, configure les bons IDs dans `models.json` (la commande `opencode models` liste les modèles disponibles)
+- Les tarifs sont dans `scripts/pricing.json` pour le calcul de coût

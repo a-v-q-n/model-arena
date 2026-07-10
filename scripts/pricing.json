@@ -12,5 +12,8 @@
   "gemini-2.5-pro": { "input": 1.25, "input_cache": 0.10, "output": 10.00 },
   "gemini-2.5-flash": { "input": 0.15, "input_cache": 0.075, "output": 0.60 },
   "deepseek-chat": { "input": 0.27, "input_cache": 0.07, "output": 1.10 },
-  "deepseek-reasoner": { "input": 0.55, "input_cache": 0.14, "output": 2.19 }
+  "deepseek-reasoner": { "input": 0.55, "input_cache": 0.14, "output": 2.19 },
+  "opencode/deepseek-v4-flash-free": { "input": 0, "input_cache": 0, "output": 0 },
+  "opencode/mimo-v2.5-free": { "input": 0, "input_cache": 0, "output": 0 },
+  "opencode/hy3-free": { "input": 0, "input_cache": 0, "output": 0 }
 }

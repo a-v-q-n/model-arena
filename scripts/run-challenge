@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NAME="${1:-}"
+TIMEOUT_PER_RUN="${2:-180}"  # default 3min per model
+
+if [ -z "$NAME" ]; then
+  echo "Usage: run-challenge <challenge-name> [timeout-seconds]"
+  echo ""
+  echo "Exemples :"
+  echo "  run-challenge hello-world        # timeout 180s par modèle"
+  echo "  run-challenge hello-world 300    # timeout 5min par modèle"
+  exit 1
+fi
+
+DIR="challenges/$NAME"
+if [ ! -d "$DIR" ]; then
+  echo "Error: challenge '$NAME' not found in $DIR"
+  exit 1
+fi
+
+CHALLENGE_FILE="$DIR/challenge.md"
+MODELS_FILE="$DIR/models.json"
+RUNS_DIR="$DIR/runs"
+PRICING_FILE="scripts/pricing.json"
+
+for f in "$CHALLENGE_FILE" "$MODELS_FILE"; do
+  [ -f "$f" ] || { echo "Error: $f not found"; exit 1; }
+done
+
+PROMPT=$(cat "$CHALLENGE_FILE")
+mkdir -p "$RUNS_DIR"
+RESULTS_JSON="$RUNS_DIR/leaderboard.json"
+
+echo "🏟️  Arena — challenge '$NAME'"
+echo ""
+
+MODELS=$(python3 -c "
+import json
+with open('$MODELS_FILE') as f:
+    data = json.load(f)
+for m in data['models']:
+    print(f\"{m['id']}|{m.get('provider','')}|{m.get('label',m['id'])}\")
+")
+
+declare -a RESULTS=()
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+PORT=18765
+
+while IFS='|' read -r MODEL_ID PROVIDER LABEL; do
+  [ -z "$MODEL_ID" ] && continue
+  MODEL_DIR="$RUNS_DIR/$MODEL_ID"
+  mkdir -p "$MODEL_DIR"
+
+  echo "▶️  [$LABEL] en cours... (timeout ${TIMEOUT_PER_RUN}s)"
+
+  START_TS=$(date +%s)
+  OUTPUT_FILE="$MODEL_DIR/output.md"
+
+  AGENT_PROMPT="Tu participes à un challenge d'agents.
+
+## Tâche
+$PROMPT
+
+## Instructions
+1. Complète la tâche ci-dessus du mieux possible
+2. Sauvegarde tes livrables dans $MODEL_DIR/
+3. Crée $MODEL_DIR/output.md avec le résumé de ton travail
+4. NE touche à rien en dehors de $MODEL_DIR
+5. Quand tu as fini, écris '---CHALLENGE COMPLETE---'"
+
+  # Run opencode (background + timeout)
+  LOG_FILE="/tmp/arena-${MODEL_ID//\//-}.log"
+  opencode run "$AGENT_PROMPT" \
+    --model "$MODEL_ID" \
+    --title "arena: $NAME / $LABEL" \
+    --auto \
+    --dir "$(pwd)" \
+    --format default > "$LOG_FILE" 2>&1 &
+  OPENCODE_PID=$!
+
+  # Wait with timeout (seconds)
+  ELAPSED=0
+  while kill -0 "$OPENCODE_PID" 2>/dev/null; do
+    sleep 1
+    ELAPSED=$((ELAPSED + 1))
+    if [ "$ELAPSED" -ge "$TIMEOUT_PER_RUN" ]; then
+      echo "   ⏰ Timeout ${TIMEOUT_PER_RUN}s dépassé, arrêt..."
+      kill "$OPENCODE_PID" 2>/dev/null || true
+      sleep 1
+      kill -9 "$OPENCODE_PID" 2>/dev/null || true
+      break
+    fi
+  done
+
+  cp "$LOG_FILE" "$OUTPUT_FILE"
+
+  END_TS=$(date +%s)
+  DURATION=$((END_TS - START_TS))
+
+  # Kill any lingering python HTTP servers on our ports
+  lsof -ti tcp:$PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+
+  # Screenshot (si playwright est installé)
+  SCREENSHOT_EXISTS="false"
+  HTML_FILE=$(find "$MODEL_DIR" -name "*.html" -maxdepth 1 | head -1)
+  if [ -n "$HTML_FILE" ]; then
+    if [ ! -d "node_modules/playwright" ]; then
+      npm install playwright 2>/dev/null
+    fi
+    if [ -d "node_modules/playwright" ]; then
+      echo "   📸 Capture d'écran..."
+      npx playwright install chromium 2>/dev/null || true
+      python3 -m http.server "$PORT" --directory "$MODEL_DIR" &
+      SERVER_PID=$!
+      sleep 1
+      node scripts/screenshot.mjs "http://localhost:$PORT/index.html" "$MODEL_DIR/screenshot.png" 2>/dev/null && SCREENSHOT_EXISTS="true" || true
+      kill "$SERVER_PID" 2>/dev/null || true
+    fi
+  fi
+
+  echo "✅  [$LABEL] terminé en ${DURATION}s"
+
+  cat > "$MODEL_DIR/meta.json" << META
+{
+  "model": "$MODEL_ID",
+  "provider": "$PROVIDER",
+  "label": "$LABEL",
+  "challenge": "$NAME",
+  "timestamp": "$TIMESTAMP",
+  "duration_seconds": $DURATION,
+  "screenshot": $SCREENSHOT_EXISTS
+}
+META
+
+  RESULTS+=("{\"model\":\"$MODEL_ID\",\"provider\":\"$PROVIDER\",\"label\":\"$LABEL\",\"duration_seconds\":$DURATION,\"screenshot\":$SCREENSHOT_EXISTS}")
+done <<< "$MODELS"
+
+# Build leaderboard
+JSON_RESULTS="["
+FIRST=true
+for r in "${RESULTS[@]}"; do
+  $FIRST || JSON_RESULTS+=","
+  JSON_RESULTS+="$r"
+  FIRST=false
+done
+JSON_RESULTS+="]"
+
+cat > "$RESULTS_JSON" << LEADERBOARD
+{
+  "challenge": "$NAME",
+  "timestamp": "$TIMESTAMP",
+  "results": $JSON_RESULTS
+}
+LEADERBOARD
+
+echo ""
+echo "📊  Résultats :"
+echo ""
+printf "%-35s %12s %10s\n" "Modèle" "Temps" "Capture"
+printf "%-35s %12s %10s\n" "-----------------------------------" "------------" "----------"
+python3 -c "
+import json
+with open('$RESULTS_JSON') as f:
+    data = json.load(f)
+for r in sorted(data['results'], key=lambda x: x['duration_seconds']):
+    s = '✅' if r.get('screenshot') else '❌'
+    print(f\"{r['label']:35s} {r['duration_seconds']:8d}s  {s:>8s}\")
+"
+
+echo ""
+echo "📁  Résultats : $RUNS_DIR"
+echo "📊  Leaderboard : $RESULTS_JSON"
