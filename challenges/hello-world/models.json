@@ -1,0 +1,19 @@
+{
+  "models": [
+    {
+      "id": "claude-sonnet-4-20250514",
+      "provider": "anthropic",
+      "label": "Claude Sonnet 4"
+    },
+    {
+      "id": "gpt-4o",
+      "provider": "openai",
+      "label": "GPT-4o"
+    },
+    {
+      "id": "claude-haiku-3-5-20241022",
+      "provider": "anthropic",
+      "label": "Claude Haiku 3.5"
+    }
+  ]
+}

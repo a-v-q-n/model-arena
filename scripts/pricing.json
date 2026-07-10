@@ -1,0 +1,16 @@
+{
+  "claude-sonnet-4-20250514": { "input": 3.00, "input_cache": 0.30, "output": 15.00 },
+  "claude-sonnet-4": { "input": 3.00, "input_cache": 0.30, "output": 15.00 },
+  "claude-haiku-3-5-20241022": { "input": 0.80, "input_cache": 0.08, "output": 4.00 },
+  "claude-3-5-sonnet-20241022": { "input": 3.00, "input_cache": 0.30, "output": 15.00 },
+  "claude-3-opus-20240229": { "input": 15.00, "input_cache": 1.50, "output": 75.00 },
+  "gpt-4o": { "input": 2.50, "input_cache": 1.25, "output": 10.00 },
+  "gpt-4o-mini": { "input": 0.15, "input_cache": 0.075, "output": 0.60 },
+  "gpt-4-turbo": { "input": 10.00, "input_cache": null, "output": 30.00 },
+  "o3-mini": { "input": 1.10, "input_cache": 0.55, "output": 4.40 },
+  "o4-mini": { "input": 1.10, "input_cache": 0.55, "output": 4.40 },
+  "gemini-2.5-pro": { "input": 1.25, "input_cache": 0.10, "output": 10.00 },
+  "gemini-2.5-flash": { "input": 0.15, "input_cache": 0.075, "output": 0.60 },
+  "deepseek-chat": { "input": 0.27, "input_cache": 0.07, "output": 1.10 },
+  "deepseek-reasoner": { "input": 0.55, "input_cache": 0.14, "output": 2.19 }
+}

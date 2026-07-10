@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Une page de célébration pour la victoire de la Belgique."
+    />
+    <title>Victoire belge !</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Montserrat:ital,wght@0,700;0,800;0,900;1,800&display=swap");
+
+      :root {
+        --yellow: #ffdd00;
+        --red: #ef3340;
+        --ink: #101010;
+        --cream: #fff9e9;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+        color: var(--cream);
+        background: var(--ink);
+        font-family: "Montserrat", sans-serif;
+      }
+
+      .flag-stripe {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: -1;
+        width: 100%;
+        background: linear-gradient(90deg, #0b0b0b 0 33.333%, var(--yellow) 33.333% 66.666%, var(--red) 66.666%);
+        opacity: 0.16;
+      }
+
+      main {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        padding: 2rem;
+      }
+
+      .card {
+        position: relative;
+        width: min(920px, 100%);
+        overflow: hidden;
+        border: 3px solid var(--cream);
+        background: rgba(16, 16, 16, 0.91);
+        box-shadow: 12px 12px 0 var(--red), -12px -12px 0 var(--yellow);
+      }
+
+      .topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        color: var(--ink);
+        background: var(--yellow);
+        font: 500 0.8rem/1 "DM Mono", monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .live { display: flex; align-items: center; gap: 0.55rem; }
+      .dot {
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 0 0 4px rgba(239, 51, 64, 0.25);
+        animation: pulse 1.4s infinite;
+      }
+
+      .content { padding: clamp(2.5rem, 8vw, 5.5rem) clamp(1.5rem, 8vw, 6rem) 4rem; }
+
+      .kicker {
+        margin: 0 0 1rem;
+        color: var(--yellow);
+        font: 500 clamp(0.8rem, 2vw, 1rem)/1 "DM Mono", monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 800px;
+        margin: 0;
+        font-size: clamp(3.5rem, 10vw, 8rem);
+        font-style: italic;
+        font-weight: 900;
+        letter-spacing: -0.09em;
+        line-height: 0.83;
+        text-transform: uppercase;
+      }
+
+      h1 span { color: var(--red); }
+
+      .message {
+        max-width: 600px;
+        margin: 2rem 0 0;
+        font-size: clamp(1rem, 2.2vw, 1.25rem);
+        font-weight: 700;
+        line-height: 1.55;
+      }
+
+      .score {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 2.5rem;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--cream);
+        font: 500 1rem/1 "DM Mono", monospace;
+      }
+
+      .score strong { color: var(--yellow); font-size: 1.25rem; }
+      .score .dash { color: var(--red); }
+
+      .confetti {
+        position: absolute;
+        width: 13px;
+        height: 30px;
+        background: var(--yellow);
+        transform: rotate(28deg);
+        animation: drift 4s ease-in-out infinite alternate;
+      }
+      .c1 { top: 21%; right: 8%; background: var(--red); animation-delay: -1s; }
+      .c2 { top: 55%; right: 17%; width: 9px; height: 22px; animation-delay: -2.6s; }
+      .c3 { bottom: 8%; right: 4%; width: 20px; height: 10px; background: var(--cream); animation-delay: -0.7s; }
+      .c4 { bottom: 18%; left: 5%; width: 8px; height: 25px; background: var(--red); animation-delay: -2s; }
+
+      .footer {
+        padding: 0 1.25rem 1.25rem;
+        color: rgba(255, 249, 233, 0.65);
+        font: 400 0.75rem/1.4 "DM Mono", monospace;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      @keyframes pulse { 50% { opacity: 0.35; transform: scale(0.75); } }
+      @keyframes drift { to { transform: translateY(20px) rotate(70deg); } }
+
+      @media (max-width: 540px) {
+        main { padding: 1.25rem; }
+        .card { box-shadow: 7px 7px 0 var(--red), -7px -7px 0 var(--yellow); }
+        .topline { font-size: 0.65rem; }
+        .topline time { display: none; }
+        .content { padding-bottom: 3rem; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="flag-stripe" aria-hidden="true"></div>
+    <main>
+      <section class="card" aria-labelledby="title">
+        <div class="topline">
+          <div class="live"><span class="dot" aria-hidden="true">&#9679;</span> Soirée de victoire</div>
+          <time datetime="2026-07-10">Ce soir</time>
+        </div>
+        <div class="content">
+          <p class="kicker">Noir. Jaune. Rouge. Fiers.</p>
+          <h1 id="title">La Belgique<br /><span>l'emporte !</span></h1>
+          <p class="message">Quelle soirée. Les Diables ont tout donné, et le pays entier célèbre cette victoire avec eux.</p>
+          <div class="score" aria-label="Victoire de la Belgique">
+            <span>BEL</span><strong>VICTOIRE</strong><span class="dash">///</span><span>ON FÊTE ÇA</span>
+          </div>
+        </div>
+        <div class="confetti c1" aria-hidden="true"></div>
+        <div class="confetti c2" aria-hidden="true"></div>
+        <div class="confetti c3" aria-hidden="true"></div>
+        <div class="confetti c4" aria-hidden="true"></div>
+        <p class="footer">Tous ensemble, tous unis. Allez les Diables.</p>
+      </section>
+    </main>
+  </body>
+</html>

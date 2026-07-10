@@ -1,0 +1,47 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": ["./skills"]
+  },
+  "agent": {
+    "arena-sonnet": {
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "mode": "subagent",
+      "description": "Arena agent — Claude Sonnet 4"
+    },
+    "arena-gpt4o": {
+      "model": "openai/gpt-4o",
+      "mode": "subagent",
+      "description": "Arena agent — GPT-4o"
+    },
+    "arena-haiku": {
+      "model": "anthropic/claude-haiku-3-5-20241022",
+      "mode": "subagent",
+      "description": "Arena agent — Claude Haiku 3.5"
+    },
+    "arena-gpt4o-mini": {
+      "model": "openai/gpt-4o-mini",
+      "mode": "subagent",
+      "description": "Arena agent — GPT-4o Mini"
+    },
+    "arena-deepseek": {
+      "model": "deepseek/deepseek-chat",
+      "mode": "subagent",
+      "description": "Arena agent — DeepSeek Chat"
+    }
+  },
+  "command": {
+    "new-challenge": {
+      "template": "bash scripts/new-challenge {input}",
+      "description": "Create a new arena challenge",
+      "subtask": false
+    }
+  },
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp"],
+      "enabled": true
+    }
+  }
+}

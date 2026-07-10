@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NAME="${1:-}"
+if [ -z "$NAME" ]; then
+  echo "Usage: new-challenge <name>"
+  exit 1
+fi
+
+DIR="challenges/$NAME"
+if [ -d "$DIR" ]; then
+  echo "Error: $DIR already exists"
+  exit 1
+fi
+
+mkdir -p "$DIR/runs"
+
+cat > "$DIR/challenge.md" << CHALLENGE
+# $NAME
+
+## Contexte
+
+Décris le contexte ici.
+
+## Consigne
+
+Explique clairement ce que l'agent doit faire.
+
+## Critères d'évaluation
+
+- critère 1
+- critère 2
+- critère 3
+
+## Format de sortie attendu
+
+Décris ce que l'agent doit produire (fichiers, code, texte, etc.).
+CHALLENGE
+
+cat > "$DIR/models.json" << MODELS
+{
+  "models": [
+    {
+      "id": "claude-sonnet-4-20250514",
+      "provider": "anthropic",
+      "label": "Claude Sonnet 4"
+    },
+    {
+      "id": "gpt-4o",
+      "provider": "openai",
+      "label": "GPT-4o"
+    }
+  ]
+}
+MODELS
+
+echo "✓ Challenge '$NAME' créé dans $DIR/"
+echo "  → Édite $DIR/challenge.md pour définir la tâche"
+echo "  → Configure $DIR/models.json pour lister les modèles"
