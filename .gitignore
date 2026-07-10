@@ -1,5 +1,7 @@
+# Les runs/ des challenges sont VERSIONNÉS : le site les publie (captures, livrables).
 node_modules/
 .DS_Store
 *.log
 .env
-runs/
+dist/
+.astro/

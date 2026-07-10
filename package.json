@@ -2,7 +2,17 @@
   "name": "model-arena",
   "private": true,
   "description": "Arena for testing AI agents across different models",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "gate": "astro build"
+  },
   "dependencies": {
     "playwright": "^1.52.0"
+  },
+  "devDependencies": {
+    "astro": "^5.16.4"
   }
 }

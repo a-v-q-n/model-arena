@@ -10,6 +10,18 @@ scripts/run-challenge <nom> 300 avec timeout 5min
 
 Depuis opencode : `/new-challenge` et `/run-challenge`.
 
+## Le site — model-arena.avqn.ch
+
+Le repo porte un site Astro qui publie l'arène :
+
+- **Home `/`** — la liste des challenges, rendue au build depuis `challenges/*/`.
+- **Récap `/recap/?c=<nom>`** — un seul template pour tous les challenges : il fetch côté client
+  `challenge.md` + `leaderboard.json` et rend consigne, résultats, lecture comparée et livrables.
+
+Les `runs/` sont **versionnés** : captures et livrables sont la matière que le site publie.
+Déploiement mono-palier : push `main` → CI GitHub → image GHCR → Coolify sert model-arena.avqn.ch
+(pas d'environnement de preview). En local : `npm install` puis `npm run dev`.
+
 ---
 
 ## Guide pas à pas

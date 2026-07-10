@@ -1,0 +1,96 @@
+name: ci
+# CI/CD autonome de model-arena (model-arena.avqn.ch). Mono-palier : push `main` → image GHCR
+# immuable (sha-<commit>) → deploy PROD. Coolify ne build jamais : on pointe le service prod sur
+# l'image déjà construite+testée. La grammaire Coolify est déléguée au workflow partagé d'avqn-dev.
+#
+# Deux déclencheurs :
+#   - workflow_dispatch : GATE seul (aucun deploy).
+#   - push `main` : build (si l'image manque) + deploy prod.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      exists: ${{ steps.exists.outputs.exists }}
+    steps:
+      - id: tag
+        run: echo "tag=sha-${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+      - id: exists
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          if docker manifest inspect "ghcr.io/$OWNER/model-arena:$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"; echo "image $TAG déjà publiée → build sauté"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"; echo "image $TAG absente → build"
+          fi
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run gate
+
+  build:
+    needs: [prep, test]
+    if: needs.prep.outputs.exists != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build + push (image immuable, sha cuit dans healthz.json)
+        env:
+          ENV_TAG: ${{ needs.prep.outputs.tag }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/$OWNER/model-arena:$ENV_TAG"
+          docker buildx build \
+            --build-arg GIT_SHA="$GITHUB_SHA" \
+            --cache-from "type=gha,scope=model-arena" \
+            --cache-to   "type=gha,mode=max,scope=model-arena" \
+            --tag "$IMG" --push .
+
+  # Deploy prod : délègue la grammaire Coolify au reusable workflow partagé d'avqn-dev.
+  deploy:
+    needs: [prep, test, build]
+    if: >-
+      always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && needs.test.result == 'success'
+      && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    uses: a-v-q-n/avqn-dev/.github/workflows/deploy.yml@main
+    with:
+      uuid: u8kc0g8o4s0kkgs04ss0k8w8
+      health_url: https://model-arena.avqn.ch/healthz.json
+      image_tag: ${{ needs.prep.outputs.tag }}
+      mode: service
+    secrets:
+      coolify_token: ${{ secrets.COOLIFY_TOKEN }}

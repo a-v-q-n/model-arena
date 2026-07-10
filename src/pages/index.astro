@@ -1,0 +1,138 @@
+---
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import Base from "../layouts/Base.astro";
+
+// La home est rendue au build : elle glob challenges/*/ dans le repo.
+// Un push qui ajoute un challenge redéploie le site, la liste suit.
+const root = join(process.cwd(), "challenges");
+
+function lireJson(chemin) {
+  try {
+    return JSON.parse(readFileSync(chemin, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+const challenges = readdirSync(root, { withFileTypes: true })
+  .filter((d) => d.isDirectory())
+  .map((d) => {
+    const dir = join(root, d.name);
+    const md = existsSync(join(dir, "challenge.md"))
+      ? readFileSync(join(dir, "challenge.md"), "utf8")
+      : "";
+    const board = lireJson(join(dir, "leaderboard.json"));
+    const models = lireJson(join(dir, "models.json"))?.models ?? [];
+    return {
+      name: d.name,
+      title: md.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? d.name,
+      date: d.name.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? null,
+      models: models.length,
+      results: board?.results?.length ?? 0,
+      ranAt: board?.timestamp ?? null,
+    };
+  })
+  .sort((a, b) => (b.ranAt ?? b.date ?? "").localeCompare(a.ranAt ?? a.date ?? ""));
+---
+
+<Base>
+  <section class="hero">
+    <p class="eyebrow">Arène d'évaluation</p>
+    <h1>Des modèles à <em>l'épreuve</em></h1>
+    <p class="lede">
+      Chaque challenge donne la même consigne à plusieurs modèles et mesure ce qui en sort :
+      durée, tokens, coût, livrable.
+    </p>
+  </section>
+
+  <section aria-label="Challenges">
+    <div class="list-head">
+      <span class="meta">{challenges.length} challenge{challenges.length > 1 ? "s" : ""}</span>
+    </div>
+    <ol class="challenges">
+      {
+        challenges.map((c) => (
+          <li>
+            <a class="challenge" href={`/recap/?c=${encodeURIComponent(c.name)}`}>
+              <span class="meta date">{c.date ?? "sans date"}</span>
+              <span class="titre">{c.title}</span>
+              <span class="meta stats">
+                {c.models} modèle{c.models > 1 ? "s" : ""} · {c.results} résultat{c.results > 1 ? "s" : ""}
+              </span>
+              <span class="fleche" aria-hidden="true">→</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+    {challenges.length === 0 && <p class="lede">Aucun challenge pour l'instant — <code>scripts/new-challenge</code> pour ouvrir l'arène.</p>}
+  </section>
+</Base>
+
+<style>
+  .hero {
+    margin-bottom: var(--space-xl);
+    max-width: 42ch;
+  }
+  .hero h1 {
+    font-size: var(--text-titre);
+    margin-top: 0.35em;
+  }
+  .lede {
+    color: var(--muted);
+    margin: 0.9em 0 0;
+  }
+
+  .list-head {
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .challenges {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .challenges li + li .challenge {
+    border-top: 1px solid var(--rule);
+  }
+  .challenge {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr auto auto;
+    align-items: baseline;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-sm);
+    text-decoration: none;
+    transition: background var(--motion-vif) ease;
+  }
+  .challenge:hover {
+    background: rgba(250, 248, 243, 0.045);
+  }
+  .titre {
+    font-family: var(--font-serif);
+    font-size: 1.45rem;
+    line-height: 1.15;
+  }
+  .fleche {
+    color: var(--muted);
+    transition: color var(--motion-vif) ease, transform var(--motion-vif) ease;
+  }
+  .challenge:hover .fleche {
+    color: var(--accent);
+    transform: translateX(3px);
+  }
+
+  @media (max-width: 640px) {
+    .challenge {
+      grid-template-columns: 1fr auto;
+    }
+    .date {
+      order: -1;
+      grid-column: 1 / -1;
+    }
+    .stats {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

@@ -1,0 +1,406 @@
+---
+import Base from "../layouts/Base.astro";
+// LE template de récap : une seule page pour tous les challenges. Elle fetch
+// challenges/<c>/challenge.md + leaderboard.json côté client et rend tout —
+// rien n'est généré par challenge.
+---
+
+<Base title="Récap">
+  <div id="etat" class="etat">
+    <p class="eyebrow">Récap</p>
+    <p class="lede">Chargement du challenge…</p>
+  </div>
+
+  <article id="recap" hidden>
+    <header class="entete">
+      <a class="retour meta" href="/">← Tous les challenges</a>
+      <p class="eyebrow" id="date"></p>
+      <h1 id="titre"></h1>
+      <p class="meta" id="sous-titre"></p>
+    </header>
+
+    <section>
+      <h2 class="section-titre">La consigne</h2>
+      <pre id="consigne" class="consigne"></pre>
+    </section>
+
+    <section>
+      <h2 class="section-titre">Résultats</h2>
+      <div id="cartes" class="cartes"></div>
+    </section>
+
+    <section id="analyse-section" hidden>
+      <h2 class="section-titre">Lecture comparée</h2>
+      <ul id="analyse" class="analyse"></ul>
+    </section>
+
+    <section id="details-section" hidden>
+      <h2 class="section-titre">Livrables</h2>
+      <div id="details" class="details"></div>
+    </section>
+  </article>
+
+  <noscript>
+    <p class="lede">Cette page rend les données du challenge côté client — JavaScript requis.</p>
+  </noscript>
+</Base>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function el(tag, attrs = {}, children = []) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "text") n.textContent = v;
+      else if (v !== null && v !== undefined) n.setAttribute(k, v);
+    }
+    for (const c of children) n.append(c);
+    return n;
+  }
+
+  function fmtTokens(n) {
+    if (n == null) return "—";
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+    if (n >= 1_000) return Math.round(n / 1_000) + "K";
+    return String(n);
+  }
+
+  function fmtCout(c) {
+    if (c == null) return "—";
+    return c > 0 ? "$" + c.toFixed(4) : "gratuit";
+  }
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso ?? "";
+    return d.toLocaleString("fr-CH", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Zurich" });
+  }
+
+  function totalTokens(r) {
+    const t = r.tokens;
+    if (!t || (t.input_tokens == null && t.output_tokens == null)) return null;
+    return (t.input_tokens ?? 0) + (t.output_tokens ?? 0);
+  }
+
+  function erreur(message) {
+    $("etat").innerHTML = "";
+    $("etat").append(
+      el("p", { class: "eyebrow", text: "Récap" }),
+      el("p", { class: "lede", text: message }),
+      el("a", { href: "/", class: "meta", text: "← Tous les challenges" })
+    );
+  }
+
+  async function existe(url) {
+    try {
+      const r = await fetch(url, { method: "HEAD" });
+      return r.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  function carte(r, index, focal) {
+    const stats = el("dl", { class: "stats" });
+    const ligne = (dt, dd) =>
+      stats.append(el("div", { class: "stat" }, [el("dt", { text: dt }), el("dd", { text: dd })]));
+    ligne("Durée", r.duration_seconds != null ? r.duration_seconds + "s" : "—");
+    ligne("Tokens in", fmtTokens(r.tokens?.input_tokens));
+    ligne("Tokens out", fmtTokens(r.tokens?.output_tokens));
+    ligne("Total", fmtTokens(totalTokens(r)));
+    ligne("Coût estimé", fmtCout(r.estimated_cost));
+
+    const media = el("div", { class: "capture" });
+    if (r.screenshot) {
+      const img = el("img", {
+        src: `/challenges/${challengeName}/runs/${r.slug}/screenshot.png`,
+        alt: `Capture — ${r.label}`,
+        loading: "lazy",
+      });
+      img.addEventListener("error", () => {
+        media.replaceChildren(el("p", { class: "meta", text: "Capture non publiée" }));
+      });
+      media.append(img);
+    } else {
+      media.append(el("p", { class: "meta", text: "Aucune capture" }));
+    }
+
+    return el("div", { class: focal ? "carte focal" : "carte" }, [
+      el("header", { class: "carte-entete" }, [
+        el("span", { class: "rang meta", text: String(index + 1).padStart(2, "0") }),
+        el("h3", { text: r.label ?? r.model }),
+        el("span", { class: "meta", text: r.provider ?? "" }),
+      ]),
+      stats,
+      media,
+    ]);
+  }
+
+  function lectureComparee(results) {
+    const lignes = [];
+    const durees = results.filter((r) => r.duration_seconds > 0);
+    if (durees.length >= 2) {
+      const rapide = durees.reduce((a, b) => (a.duration_seconds <= b.duration_seconds ? a : b));
+      const lent = durees.reduce((a, b) => (a.duration_seconds >= b.duration_seconds ? a : b));
+      lignes.push(
+        `Vitesse — ${rapide.label} boucle en ${rapide.duration_seconds}s, ` +
+          `${(lent.duration_seconds / rapide.duration_seconds).toFixed(1)}× plus vite que ${lent.label} (${lent.duration_seconds}s).`
+      );
+    }
+    const avecTokens = results.filter((r) => totalTokens(r) > 0);
+    if (avecTokens.length >= 2) {
+      const gourmand = avecTokens.reduce((a, b) => (totalTokens(a) >= totalTokens(b) ? a : b));
+      const sobre = avecTokens.reduce((a, b) => (totalTokens(a) <= totalTokens(b) ? a : b));
+      lignes.push(
+        `Tokens — ${gourmand.label} consomme ${(totalTokens(gourmand) / totalTokens(sobre)).toFixed(1)}× plus que ` +
+          `${sobre.label} (${fmtTokens(totalTokens(gourmand))} contre ${fmtTokens(totalTokens(sobre))}).`
+      );
+      const debits = avecTokens
+        .filter((r) => r.duration_seconds > 0)
+        .map((r) => `${r.label} ${Math.round(totalTokens(r) / r.duration_seconds)}/s`);
+      if (debits.length >= 2) lignes.push(`Débit — ${debits.join(" · ")}.`);
+    }
+    return lignes;
+  }
+
+  async function detail(r) {
+    const base = `/challenges/${challengeName}/runs/${r.slug}`;
+    const bloc = el("div", { class: "detail" }, [
+      el("header", { class: "detail-entete" }, [
+        el("h3", { text: r.label ?? r.model }),
+        el("span", {
+          class: "meta",
+          text: [
+            r.duration_seconds != null ? r.duration_seconds + "s" : null,
+            totalTokens(r) != null ? fmtTokens(totalTokens(r)) + " tokens" : null,
+            fmtCout(r.estimated_cost) !== "—" ? fmtCout(r.estimated_cost) : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        }),
+      ]),
+    ]);
+    const [aHtml, aOutput] = await Promise.all([existe(`${base}/index.html`), existe(`${base}/output.md`)]);
+    if (aHtml) {
+      bloc.append(
+        el("div", { class: "apercu" }, [
+          el("iframe", { src: `${base}/index.html`, title: `Livrable — ${r.label}`, loading: "lazy" }),
+        ]),
+        el("a", { class: "meta lien-livrable", href: `${base}/index.html`, text: "Ouvrir le livrable ↗", target: "_blank", rel: "noopener" })
+      );
+    } else {
+      bloc.append(el("p", { class: "meta", text: "Livrable non publié" }));
+    }
+    if (aOutput) {
+      bloc.append(el("a", { class: "meta lien-livrable", href: `${base}/output.md`, text: "Journal du run (output.md) →" }));
+    }
+    return bloc;
+  }
+
+  const challengeName = new URLSearchParams(location.search).get("c") ?? "";
+
+  async function main() {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(challengeName)) {
+      erreur("Challenge non précisé — passe ?c=<nom-du-challenge> dans l'URL.");
+      return;
+    }
+    const base = `/challenges/${challengeName}`;
+    const [mdRes, boardRes] = await Promise.all([fetch(`${base}/challenge.md`), fetch(`${base}/leaderboard.json`)]);
+    if (!mdRes.ok) {
+      erreur(`Challenge « ${challengeName} » introuvable.`);
+      return;
+    }
+    const consigne = await mdRes.text();
+    const board = boardRes.ok ? await boardRes.json() : null;
+    const results = board?.results ?? [];
+
+    const titre = consigne.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? challengeName;
+    document.title = `${titre} — Model Arena`;
+    $("titre").textContent = titre;
+    $("date").textContent = challengeName;
+    $("sous-titre").textContent = board
+      ? `Lancé le ${fmtDate(board.timestamp)} · ${results.length} modèle${results.length > 1 ? "s" : ""}`
+      : "Pas encore lancé";
+    $("consigne").textContent = consigne;
+
+    if (results.length === 0) {
+      $("cartes").append(el("p", { class: "lede", text: "Pas encore de résultats — scripts/run-challenge pour lancer l'arène." }));
+    } else {
+      const durees = results.filter((r) => r.duration_seconds > 0);
+      const rapide = durees.length >= 2 ? durees.reduce((a, b) => (a.duration_seconds <= b.duration_seconds ? a : b)) : null;
+      results.forEach((r, i) => $("cartes").append(carte(r, i, r === rapide)));
+
+      const lignes = lectureComparee(results);
+      if (lignes.length > 0) {
+        $("analyse-section").hidden = false;
+        lignes.forEach((l) => $("analyse").append(el("li", { text: l })));
+      }
+
+      $("details-section").hidden = false;
+      const blocs = await Promise.all(results.map(detail));
+      blocs.forEach((b) => $("details").append(b));
+    }
+
+    $("etat").hidden = true;
+    $("recap").hidden = false;
+  }
+
+  main().catch((e) => {
+    console.error(e);
+    erreur("Impossible de charger les données du challenge.");
+  });
+</script>
+
+<style is:global>
+  /* Global : le gros de cette page est construit côté client, hors scoping Astro. */
+  .entete {
+    margin-bottom: var(--space-lg);
+  }
+  .retour {
+    display: inline-block;
+    text-decoration: none;
+    margin-bottom: var(--space-md);
+  }
+  .retour:hover {
+    color: var(--fg);
+  }
+  .entete h1 {
+    font-size: var(--text-titre);
+    margin: 0.3em 0 0.35em;
+  }
+  .lede {
+    color: var(--muted);
+  }
+
+  section {
+    margin-block: var(--space-lg);
+  }
+  .section-titre {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-md);
+  }
+
+  .consigne {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--muted);
+    background: rgba(250, 248, 243, 0.045);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    max-height: 16rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    margin: 0;
+  }
+
+  .cartes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: var(--space-md);
+  }
+  .carte {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+  /* Un seul foyer vermillon par composition : le modèle le plus rapide. */
+  .carte.focal {
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  .carte.focal .rang {
+    color: var(--accent);
+  }
+  .carte-entete {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+  }
+  .carte-entete h3 {
+    font-size: 1.35rem;
+    flex: 1;
+  }
+  .stats {
+    margin: 0;
+    display: grid;
+    gap: 0.35em;
+  }
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-md);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.35em;
+  }
+  .stat dt {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .stat dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+  .capture img {
+    display: block;
+    width: 100%;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--rule);
+  }
+  .capture p {
+    margin: 0;
+  }
+
+  .analyse {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .analyse li {
+    padding: var(--space-sm) 0;
+    color: var(--muted);
+  }
+  .analyse li + li {
+    border-top: 1px solid var(--rule);
+  }
+
+  .details {
+    display: grid;
+    gap: var(--space-md);
+  }
+  .details .detail {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+  }
+  .details .detail-entete {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-md);
+  }
+  .details .detail-entete h3 {
+    font-size: 1.35rem;
+  }
+  .details .apercu iframe {
+    width: 100%;
+    height: 420px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    background: #fff;
+  }
+  .details .lien-livrable {
+    display: inline-block;
+    margin-top: var(--space-sm);
+    margin-right: var(--space-md);
+  }
+  .details .lien-livrable:hover {
+    color: var(--fg);
+  }
+</style>

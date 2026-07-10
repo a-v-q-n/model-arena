@@ -37,7 +37,8 @@ Quand l'utilisateur dit "lance le challenge" (ou équivalent) :
    ```bash
    bash scripts/run-challenge <nom-complet-avec-date>
    ```
-4. **Affiche le résultat** et ouvre la page récap.
+4. **Affiche le résultat** et donne l'URL du récap : https://model-arena.avqn.ch/recap/?c=<nom>
+   (en local : `npm run dev` puis http://localhost:4321/recap/?c=<nom>).
 
 Si l'utilisateur préfère que tu lances toi-même les modèles via des sub-agents (sans le script bash) :
 
@@ -68,17 +69,17 @@ Le script `run-challenge` capture automatiquement pour chaque modèle :
 - **Coût estimé** à partir de `pricing.json`
 - **Capture d'écran** du résultat HTML
 
-Tout est enregistré dans `runs/<slug>/meta.json` et visible dans `recap.html`.
+Tout est enregistré dans `runs/<slug>/meta.json` et publié par le site (page récap du challenge).
 
-## Page récapitulative
+## Le site
 
-La page `recap.html` (générée automatiquement) inclut :
-- Le prompt du challenge
-- Les résultats avec durée, tokens et coût
-- Une analyse comparative entre modèles (vitesse, tokens, efficacité)
-- Un aperçu du résultat HTML de chaque modèle
+Le repo porte un site Astro (model-arena.avqn.ch, déployé au push sur `main`) :
+- **Home `/`** — la liste des challenges, rendue au build.
+- **Récap `/recap/?c=<nom>`** — UN template pour tous les challenges : il fetch côté client
+  `challenge.md` + `leaderboard.json` et rend consigne, cartes de résultats (durée, tokens, coût),
+  lecture comparée et livrables (capture, iframe, output.md). Rien n'est généré par challenge.
 
-Design : fond clair, typographie Inter, mise en page cohérente, responsive.
+Les `runs/` sont versionnés : ce sont eux que le site publie. En local : `npm run dev`.
 
 ## Structure d'un challenge
 
@@ -87,7 +88,6 @@ challenges/YYYY-MM-DD-<name>/
 ├── challenge.md         # instruction donnée à chaque agent
 ├── models.json          # modèles à tester
 ├── leaderboard.json     # comparatif agrégé
-├── recap.html           # page récap visuelle
 └── runs/
     ├── <model-slug>/
     │   ├── index.html   # résultat du modèle

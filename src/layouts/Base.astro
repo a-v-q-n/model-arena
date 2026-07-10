@@ -1,0 +1,195 @@
+---
+// Gabarit unique du site. Cockpit interne → ambiance nocturne par défaut
+// (doctrine couleur du styleguide : produit interne = encre).
+interface Props {
+  title?: string;
+  description?: string;
+}
+const {
+  title = "Model Arena",
+  description = "L'arène AVQN — des modèles d'IA comparés sur des challenges concrets.",
+} = Astro.props;
+const fullTitle = title === "Model Arena" ? title : `${title} — Model Arena`;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@500;600&family=Geist:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a href="/" class="brand" aria-label="Accueil — Model Arena">Model Arena</a>
+        <span class="header-meta">arène d'évaluation</span>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <hr class="rule" />
+        <p class="colophon">
+          AVQN · model-arena.avqn.ch — le repo est la donnée : <code>challenges/</code> servi tel quel.
+        </p>
+      </div>
+    </footer>
+
+    <style is:global>
+      :root {
+        /* Rôles sémantiques, ambiance nocturne (voir styleguide.avqn.ch/doctrine/couleur). */
+        --bg: #211c17;
+        --fg: #faf8f3;
+        --muted: #cbc4ba;
+        --rule: rgba(250, 248, 243, 0.14);
+        --accent: #e0542b;
+        --font-serif: "Instrument Serif", serif;
+        --font-sans: "Geist", sans-serif;
+        --font-mono: "Geist Mono", monospace;
+        --text-titre: clamp(2rem, 4vw, 3.25rem);
+        --text-appui: 1.0625rem;
+        --text-eyebrow: 0.8125rem;
+        --text-meta: 0.75rem;
+        --grid-color: rgba(250, 248, 243, 0.055);
+        --grid-step: 120px;
+        --motion-vif: 150ms;
+        --radius-md: 6px;
+        --radius-lg: 12px;
+        --space-sm: 8px;
+        --space-md: 16px;
+        --space-lg: 32px;
+        --space-xl: 64px;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(var(--grid-color) 1px, transparent 1px) 0 0 / var(--grid-step) var(--grid-step),
+          linear-gradient(90deg, var(--grid-color) 1px, transparent 1px) 0 0 / var(--grid-step) var(--grid-step),
+          var(--bg);
+        color: var(--fg);
+        font-family: var(--font-sans);
+        font-size: var(--text-appui);
+        line-height: 1.5;
+      }
+
+      .wrap {
+        max-width: 1020px;
+        margin-inline: auto;
+        padding-inline: clamp(1rem, 4vw, 2rem);
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: var(--font-serif);
+        font-weight: 400;
+        line-height: 1.05;
+        margin: 0;
+      }
+
+      /* L'italique vermillon est réservé aux titres — le foyer de la composition. */
+      h1 em,
+      h2 em {
+        font-style: italic;
+        color: var(--accent);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .eyebrow {
+        font-family: var(--font-mono);
+        font-size: var(--text-eyebrow);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      .meta {
+        font-family: var(--font-mono);
+        font-size: var(--text-meta);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+      }
+
+      .rule {
+        border: 0;
+        border-top: 1px solid var(--rule);
+        margin: 0;
+      }
+
+      .site-header {
+        border-bottom: 1px solid var(--rule);
+        background: color-mix(in srgb, var(--bg) 88%, transparent);
+        backdrop-filter: blur(8px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .header-inner {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-md);
+        min-height: 60px;
+        padding-block: var(--space-sm);
+      }
+      .brand {
+        font-family: var(--font-serif);
+        font-size: 1.4rem;
+        text-decoration: none;
+        color: var(--fg);
+      }
+      .header-meta {
+        font-family: var(--font-mono);
+        font-size: var(--text-meta);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+      }
+
+      main {
+        padding-block: var(--space-xl) var(--space-lg);
+      }
+
+      .site-footer {
+        padding-block: var(--space-lg);
+      }
+      .colophon {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: var(--space-md) 0 0;
+      }
+      .colophon code {
+        font-family: var(--font-mono);
+        font-size: 0.85em;
+      }
+    </style>
+  </body>
+</html>
