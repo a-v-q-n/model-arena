@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Composition Équipe - Schéma 4-3-3</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px;color:#fff}
+  h1{font-size:clamp(1.2rem,3vw,1.8rem);margin-bottom:4px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .subtitle{font-size:clamp(0.7rem,1.8vw,0.95rem);color:#94a3b8;margin-bottom:16px;font-weight:400}
+  .pitch-wrapper{width:100%;max-width:700px;position:relative}
+  .pitch{position:relative;width:100%;padding-bottom:66%;background:#2d7a3a;border-radius:8px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 0 80px rgba(0,0,0,0.15)}
+  .pitch-lines{position:absolute;inset:0}
+  .pitch-lines svg{width:100%;height:100%}
+  .player{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;cursor:default;z-index:10;transition:transform .2s}
+  .player:hover{transform:translate(-50%,-50%) scale(1.15)}
+  .player-circle{width:clamp(32px,7vw,48px);height:clamp(32px,7vw,48px);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:clamp(0.7rem,1.8vw,0.95rem);color:#fff;border:2.5px solid rgba(255,255,255,0.9);box-shadow:0 3px 12px rgba(0,0,0,0.35);position:relative}
+  .player-circle::after{content:'';position:absolute;bottom:-4px;width:60%;height:4px;background:rgba(0,0,0,0.18);border-radius:50%;filter:blur(1px)}
+  .player-info{margin-top:3px;text-align:center;line-height:1.2}
+  .player-name{font-size:clamp(0.5rem,1.3vw,0.72rem);font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap}
+  .player-pos{font-size:clamp(0.4rem,1vw,0.55rem);color:#cbd5e1;text-shadow:0 1px 2px rgba(0,0,0,0.9);text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
+  .gk .player-circle{background:linear-gradient(145deg,#f59e0b,#d97706);border-color:#fbbf24}
+  .def .player-circle{background:linear-gradient(145deg,#3b82f6,#2563eb);border-color:#60a5fa}
+  .mid .player-circle{background:linear-gradient(145deg,#10b981,#059669);border-color:#34d399}
+  .fwd .player-circle{background:linear-gradient(145deg,#ef4444,#dc2626);border-color:#f87171}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:clamp(0.6rem,1.4vw,0.8rem);color:#94a3b8}
+  .legend-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.5)}
+  .legend-dot.gk{background:#f59e0b}
+  .legend-dot.def{background:#3b82f6}
+  .legend-dot.mid{background:#10b981}
+  .legend-dot.fwd{background:#ef4444}
+  .formation-tag{margin-top:12px;padding:6px 18px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:20px;font-size:clamp(0.65rem,1.5vw,0.85rem);color:#e2e8f0;letter-spacing:2px;font-weight:600}
+</style>
+</head>
+<body>
+
+<h1>Paris Saint-Germain</h1>
+<p class="subtitle">Saison 2025-2026 — Compo titulaire</p>
+
+<div class="pitch-wrapper">
+  <div class="pitch" id="pitch">
+    <div class="pitch-lines">
+      <svg viewBox="0 0 700 462" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Lignes blanches du terrain -->
+        <rect x="1" y="1" width="698" height="460" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2" rx="4"/>
+        <!-- Ligne médiane -->
+        <line x1="350" y1="1" x2="350" y2="461" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Cercle central -->
+        <circle cx="350" cy="231" r="55" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Point central -->
+        <circle cx="350" cy="231" r="3" fill="rgba(255,255,255,0.6)"/>
+        <!-- Surface de réparation gauche -->
+        <rect x="1" y="121" width="110" height="220" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Petite surface gauche -->
+        <rect x="1" y="181" width="44" height="100" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Point de penalty gauche -->
+        <circle cx="88" cy="231" r="3" fill="rgba(255,255,255,0.6)"/>
+        <!-- Arc de penalty gauche -->
+        <path d="M 111 171 Q 131 231 111 291" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Surface de réparation droite -->
+        <rect x="589" y="121" width="110" height="220" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Petite surface droite -->
+        <rect x="656" y="181" width="43" height="100" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Point de penalty droit -->
+        <circle cx="612" cy="231" r="3" fill="rgba(255,255,255,0.6)"/>
+        <!-- Arc de penalty droit -->
+        <path d="M 589 171 Q 569 231 589 291" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        <!-- Corners -->
+        <path d="M 8 12 Q 18 12 18 22" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M 692 12 Q 682 12 682 22" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M 8 450 Q 18 450 18 440" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M 692 450 Q 682 450 682 440" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <!-- Bandes alternées -->
+        <rect x="0" y="0" width="100" height="462" fill="rgba(0,0,0,0.03)"/>
+        <rect x="200" y="0" width="100" height="462" fill="rgba(0,0,0,0.03)"/>
+        <rect x="400" y="0" width="100" height="462" fill="rgba(0,0,0,0.03)"/>
+        <rect x="600" y="0" width="100" height="462" fill="rgba(0,0,0,0.03)"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot gk"></span> Gardien</div>
+  <div class="legend-item"><span class="legend-dot def"></span> Défenseur</div>
+  <div class="legend-item"><span class="legend-dot mid"></span> Milieu</div>
+  <div class="legend-item"><span class="legend-dot fwd"></span> Attaquant</div>
+</div>
+<div class="formation-tag">4 — 3 — 3</div>
+
+<script>
+(function(){
+  const players = [
+    { num:1,  name:"Donnarumma", pos:"Gardien",   cls:"gk", x:5,   y:50 },
+    { num:2,  name:"Hakimi",    pos:"Défenseur", cls:"def", x:18,  y:12 },
+    { num:4,  name:"Marquinhos",pos:"Défenseur", cls:"def", x:18,  y:37 },
+    { num:5,  name:"Skriniar",  pos:"Défenseur", cls:"def", x:18,  y:63 },
+    { num:25, name:"Nuno Mendes",pos:"Défenseur",cls:"def", x:18,  y:88 },
+    { num:17, name:"Vitinha",   pos:"Milieu",    cls:"mid", x:35,  y:25 },
+    { num:33, name:"Zaïre-Emery",pos:"Milieu",   cls:"mid", x:35,  y:50 },
+    { num:8,  name:"Fabian Ruiz",pos:"Milieu",   cls:"mid", x:35,  y:75 },
+    { num:10, name:"Dembélé",   pos:"Attaquant", cls:"fwd", x:52,  y:18 },
+    { num:7,  name:"Gonçalo Ramos",pos:"Attaquant",cls:"fwd",x:52, y:50 },
+    { num:29, name:"Barcola",   pos:"Attaquant", cls:"fwd", x:52,  y:82 }
+  ];
+
+  const pitch = document.getElementById('pitch');
+
+  players.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'player ' + p.cls;
+    el.style.left = p.x + '%';
+    el.style.top  = p.y + '%';
+    el.innerHTML = `
+      <div class="player-circle">${p.num}</div>
+      <div class="player-info">
+        <div class="player-name">${p.name}</div>
+        <div class="player-pos">${p.pos}</div>
+      </div>`;
+    pitch.appendChild(el);
+  });
+})();
+</script>
+</body>
+</html>

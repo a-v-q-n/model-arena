@@ -1,0 +1,14 @@
+{
+  "models": [
+    {
+      "id": "opencode/deepseek-v4-flash-free",
+      "provider": "opencode",
+      "label": "DeepSeek V4 Flash (gratuit)"
+    },
+    {
+      "id": "opencode/mimo-v2.5-free",
+      "provider": "opencode",
+      "label": "Mimo v2.5 (gratuit)"
+    }
+  ]
+}

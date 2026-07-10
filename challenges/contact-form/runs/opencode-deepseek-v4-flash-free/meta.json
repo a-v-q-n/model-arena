@@ -1,0 +1,9 @@
+{
+  "model": "opencode/deepseek-v4-flash-free",
+  "provider": "opencode",
+  "label": "DeepSeek V4 Flash Free",
+  "challenge": "contact-form",
+  "timestamp": "2026-07-10T20:30:19Z",
+  "duration_seconds": 65,
+  "screenshot": true
+}

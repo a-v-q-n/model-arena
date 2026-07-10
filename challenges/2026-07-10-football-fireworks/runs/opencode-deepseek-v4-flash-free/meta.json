@@ -1,0 +1,11 @@
+{
+  "model": "opencode/deepseek-v4-flash-free",
+  "provider": "opencode",
+  "label": "DeepSeek V4 Flash (gratuit)",
+  "challenge": "2026-07-10-football-fireworks",
+  "timestamp": "2026-07-10T20:55:35Z",
+  "duration_seconds": 183,
+  "screenshot": true,
+  "tokens": {"input_tokens": 14600, "output_tokens": 25100, "cache_read": 100000, "cache_write": 0, "cost": 0.0, "messages": 3},
+  "estimated_cost": 0.000000
+}

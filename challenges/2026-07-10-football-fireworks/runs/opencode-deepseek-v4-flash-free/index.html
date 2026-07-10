@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Football Fireworks 3D</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { overflow: hidden; background: #000; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// === Scène ===
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0b2e);
+scene.fog = new THREE.Fog(0x0b0b2e, 40, 100);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(0, 3.5, 9);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 25;
+controls.target.set(0, 0.5, 0);
+
+// === Texture du ballon ===
+function createBallTexture() {
+  const S = 1024;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d');
+
+  // fond blanc légèrement texturé
+  ctx.fillStyle = '#ececec';
+  ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 8000; i++) {
+    const v = 210 + Math.random() * 45;
+    ctx.fillStyle = `rgb(${v},${v},${v})`;
+    ctx.fillRect(Math.random() * S, Math.random() * S, 3, 3);
+  }
+
+  // lignes de couture subtiles
+  ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 60; i++) {
+    ctx.beginPath();
+    ctx.arc(Math.random() * S, Math.random() * S, 60 + Math.random() * 120, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function pent(cx, cy, r, fill) {
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = (i * 2 * Math.PI / 5) - Math.PI / 2;
+      const x = cx + r * Math.cos(a);
+      const y = cy + r * Math.sin(a);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // sommets de l'icosaèdre projetés en UV
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const verts = [
+    [0, 1, phi], [0, 1, -phi], [0, -1, phi], [0, -1, -phi],
+    [1, phi, 0], [1, -phi, 0], [-1, phi, 0], [-1, -phi, 0],
+    [phi, 0, 1], [phi, 0, -1], [-phi, 0, 1], [-phi, 0, -1]
+  ];
+  const f = 1 / Math.sqrt(1 + phi * phi);
+
+  for (const [x, y, z] of verts) {
+    const nx = x * f, ny = y * f, nz = z * f;
+    const u = 0.5 + Math.atan2(nz, nx) / (2 * Math.PI);
+    const v = 0.5 - Math.asin(ny) / Math.PI;
+    const px = u * S, py = v * S;
+    const r = 0.072 * S;
+    pent(px, py, r, '#1a1a1a');
+  }
+
+  // doublons pour le seam (u ≈ 0 et u ≈ 1)
+  for (const [x, y, z] of verts) {
+    const nx = x * f, ny = y * f, nz = z * f;
+    let u = 0.5 + Math.atan2(nz, nx) / (2 * Math.PI);
+    const v = 0.5 - Math.asin(ny) / Math.PI;
+
+    // dupliquer les pentagones près du seam
+    if (u < 0.08) {
+      pent((u + 1) * S, v * S, 0.072 * S, '#1a1a1a');
+    } else if (u > 0.92) {
+      pent((u - 1) * S, v * S, 0.072 * S, '#1a1a1a');
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// === Ballon ===
+const ballGeo = new THREE.SphereGeometry(2, 64, 64);
+const ballMat = new THREE.MeshStandardMaterial({
+  map: createBallTexture(),
+  roughness: 0.55,
+  metalness: 0.05,
+});
+const ball = new THREE.Mesh(ballGeo, ballMat);
+ball.castShadow = true;
+ball.receiveShadow = true;
+scene.add(ball);
+
+// === Sol ===
+const groundGeo = new THREE.CircleGeometry(12, 64);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x0a0a2e,
+  roughness: 0.9,
+  metalness: 0.0,
+  transparent: true,
+  opacity: 0.4,
+  side: THREE.DoubleSide,
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -2.15;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// === Ciel étoilé ===
+const starCount = 4000;
+const starPos = new Float32Array(starCount * 3);
+const starCol = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount; i++) {
+  const r = 60 + Math.random() * 140;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  starPos[i * 3 + 1] = Math.abs(r * Math.cos(phi));
+  starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  const b = 0.5 + Math.random() * 0.5;
+  const t = Math.random();
+  if (t < 0.1) { starCol[i * 3] = b; starCol[i * 3 + 1] = b * 0.8; starCol[i * 3 + 2] = b * 0.6; }
+  else if (t < 0.2) { starCol[i * 3] = b * 0.7; starCol[i * 3 + 1] = b * 0.8; starCol[i * 3 + 2] = b; }
+  else { starCol[i * 3] = b; starCol[i * 3 + 1] = b; starCol[i * 3 + 2] = b; }
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
+const starMat = new THREE.PointsMaterial({
+  size: 0.25,
+  sizeAttenuation: true,
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+scene.add(new THREE.Points(starGeo, starMat));
+
+// === Éclairage ===
+scene.add(new THREE.AmbientLight(0x303060, 0.4));
+
+const key = new THREE.DirectionalLight(0xffeedd, 2.5);
+key.position.set(4, 10, 6);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.5;
+key.shadow.camera.far = 25;
+key.shadow.camera.left = -8;
+key.shadow.camera.right = 8;
+key.shadow.camera.top = 8;
+key.shadow.camera.bottom = -8;
+key.shadow.bias = -0.002;
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0x4488ff, 0.6);
+fill.position.set(-4, 3, -5);
+scene.add(fill);
+
+const rim = new THREE.DirectionalLight(0x8888ff, 0.4);
+rim.position.set(0, -2, -6);
+scene.add(rim);
+
+const top = new THREE.PointLight(0x4488ff, 0.3, 20);
+top.position.set(0, 6, 0);
+scene.add(top);
+
+// === Particules de feu d'artifice ===
+function makeParticleTex() {
+  const S = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.15, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.4)');
+  g.addColorStop(0.7, 'rgba(255,255,255,0.1)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  return new THREE.CanvasTexture(c);
+}
+const particleTex = makeParticleTex();
+
+const COLORS = [
+  0xff2222, 0xff6622, 0xffaa22, 0xffee22,
+  0x22ff44, 0x22ddff, 0x4466ff, 0x8844ff,
+  0xff44ff, 0xffffff,
+];
+
+class Firework {
+  constructor(scene) {
+    this.scene = scene;
+    this.alive = true;
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 1 + Math.random() * 5;
+    this.pos = new THREE.Vector3(
+      Math.cos(angle) * dist,
+      0.5 + Math.random() * 0.5,
+      Math.sin(angle) * dist
+    );
+    this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    this.colorObj = new THREE.Color(this.color);
+
+    // phase montée
+    this.trailLen = 40;
+    this.trailData = new Float32Array(this.trailLen * 3);
+    this.trailGeo = new THREE.BufferGeometry();
+    this.trailGeo.setAttribute('position', new THREE.BufferAttribute(this.trailData, 3));
+    this.trailMat = new THREE.PointsMaterial({
+      color: this.color,
+      size: 0.18,
+      map: particleTex,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+    this.trail = new THREE.Points(this.trailGeo, this.trailMat);
+    this.trail.frustumCulled = false;
+    scene.add(this.trail);
+
+    // explosion
+    this.nParticles = 180 + Math.floor(Math.random() * 160);
+    this.expPos = new Float32Array(this.nParticles * 3);
+    this.expCol = new Float32Array(this.nParticles * 3);
+    this.vels = [];
+
+    for (let i = 0; i < this.nParticles; i++) {
+      const speed = 6 + Math.random() * 22;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      this.vels.push(new THREE.Vector3(
+        speed * Math.sin(phi) * Math.cos(theta),
+        speed * Math.cos(phi),
+        speed * Math.sin(phi) * Math.sin(theta)
+      ));
+      const c = this.colorObj.clone().multiplyScalar(0.6 + Math.random() * 0.4);
+      this.expCol[i * 3] = c.r;
+      this.expCol[i * 3 + 1] = c.g;
+      this.expCol[i * 3 + 2] = c.b;
+    }
+
+    this.expGeo = new THREE.BufferGeometry();
+    this.expGeo.setAttribute('position', new THREE.BufferAttribute(this.expPos, 3));
+    this.expGeo.setAttribute('color', new THREE.BufferAttribute(this.expCol, 3));
+
+    this.expMat = new THREE.PointsMaterial({
+      size: 0.28,
+      map: particleTex,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      vertexColors: true,
+      sizeAttenuation: true,
+    });
+    this.exp = new THREE.Points(this.expGeo, this.expMat);
+    this.exp.frustumCulled = false;
+    scene.add(this.exp);
+
+    this.riseTime = 0;
+    this.riseDuration = 0.5 + Math.random() * 0.4;
+    this.explodeTime = 0;
+    this.explodeDuration = 2.2 + Math.random() * 0.8;
+    this.phase = 'rise';
+  }
+
+  update(dt) {
+    if (!this.alive) return true;
+
+    if (this.phase === 'rise') {
+      this.riseTime += dt;
+      this.pos.y += 16 * dt;
+
+      // traînée
+      for (let i = this.trailLen - 1; i > 0; i--) {
+        this.trailData[i * 3] = this.trailData[(i - 1) * 3];
+        this.trailData[i * 3 + 1] = this.trailData[(i - 1) * 3 + 1];
+        this.trailData[i * 3 + 2] = this.trailData[(i - 1) * 3 + 2];
+      }
+      this.trailData[0] = this.pos.x;
+      this.trailData[1] = this.pos.y;
+      this.trailData[2] = this.pos.z;
+      this.trailGeo.attributes.position.needsUpdate = true;
+
+      if (this.riseTime >= this.riseDuration) {
+        // explosion
+        this.phase = 'explode';
+        for (let i = 0; i < this.nParticles; i++) {
+          this.expPos[i * 3] = this.pos.x;
+          this.expPos[i * 3 + 1] = this.pos.y;
+          this.expPos[i * 3 + 2] = this.pos.z;
+        }
+        this.expGeo.attributes.position.needsUpdate = true;
+        this.expMat.opacity = 1;
+
+        this.scene.remove(this.trail);
+        this.trailGeo.dispose();
+        this.trailMat.dispose();
+        this.trail = null;
+      }
+
+    } else {
+      // phase explosion
+      this.explodeTime += dt;
+      const t = this.explodeTime;
+      const drag = Math.exp(-t * 0.7);
+      const gravity = 12;
+
+      for (let i = 0; i < this.nParticles; i++) {
+        const v = this.vels[i];
+        const damped = v.clone().multiplyScalar(drag);
+        damped.y -= gravity * t;
+
+        this.expPos[i * 3] = this.pos.x + damped.x * t;
+        this.expPos[i * 3 + 1] = this.pos.y + damped.y * t;
+        this.expPos[i * 3 + 2] = this.pos.z + damped.z * t;
+      }
+      this.expGeo.attributes.position.needsUpdate = true;
+
+      const progress = t / this.explodeDuration;
+      this.expMat.opacity = Math.max(0, 1 - progress * progress * 1.2);
+      this.expMat.size = 0.28 * (1 - progress * 0.4);
+
+      if (t >= this.explodeDuration) {
+        this.alive = false;
+        this.scene.remove(this.exp);
+        this.expGeo.dispose();
+        this.expMat.dispose();
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+// Gestionnaire de feux d'artifice
+const activeFireworks = [];
+const spawnInterval = 0.7;
+let spawnTimer = 0;
+
+function spawnFirework() {
+  const fw = new Firework(scene);
+  activeFireworks.push(fw);
+}
+
+// === Animation ===
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.getElapsedTime();
+
+  // ballon
+  ball.rotation.y += dt * 0.35;
+  ball.position.y = Math.sin(t * 0.7) * 0.12;
+
+  // feux d'artifice
+  spawnTimer += dt;
+  if (spawnTimer >= spawnInterval) {
+    spawnTimer = 0;
+    spawnFirework();
+    if (Math.random() < 0.25) spawnFirework();
+  }
+
+  for (let i = activeFireworks.length - 1; i >= 0; i--) {
+    if (activeFireworks[i].update(dt)) {
+      activeFireworks.splice(i, 1);
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// === Redimensionnement ===
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

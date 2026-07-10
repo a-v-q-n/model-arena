@@ -1,0 +1,5 @@
+{
+  "challenge": "contact-form",
+  "timestamp": "2026-07-10T20:30:19Z",
+  "results": [{"model":"opencode/deepseek-v4-flash-free","slug":"opencode-deepseek-v4-flash-free","provider":"opencode","label":"DeepSeek V4 Flash Free","duration_seconds":65,"screenshot":true},{"model":"opencode/mimo-v2.5-free","slug":"opencode-mimo-v2.5-free","provider":"opencode","label":"Mimo v2.5 Free","duration_seconds":111,"screenshot":true},{"model":"opencode/hy3-free","slug":"opencode-hy3-free","provider":"opencode","label":"Hy3 Free","duration_seconds":77,"screenshot":true}]
+}

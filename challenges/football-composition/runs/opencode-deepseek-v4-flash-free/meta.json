@@ -1,0 +1,11 @@
+{
+  "model": "opencode/deepseek-v4-flash-free",
+  "provider": "opencode",
+  "label": "DeepSeek V4 Flash (gratuit)",
+  "challenge": "football-composition",
+  "timestamp": "2026-07-10T20:47:59Z",
+  "duration_seconds": 65,
+  "screenshot": true,
+  "tokens": {"input_tokens": 15400, "output_tokens": 5500, "cache_read": 100000, "cache_write": 0, "cost": 0.0, "messages": 9},
+  "estimated_cost": 0.000000
+}

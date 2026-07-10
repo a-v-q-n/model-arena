@@ -1,0 +1,5 @@
+{
+  "challenge": "football-composition",
+  "timestamp": "2026-07-10T20:47:59Z",
+  "results": [{"model":"opencode/deepseek-v4-flash-free","slug":"opencode-deepseek-v4-flash-free","provider":"opencode","label":"DeepSeek V4 Flash (gratuit)","duration_seconds":65,"screenshot":true,"tokens":{"input_tokens": 15400, "output_tokens": 5500, "cache_read": 100000, "cache_write": 0, "cost": 0.0, "messages": 9},"estimated_cost":0.000000},{"model":"opencode/mimo-v2.5-free","slug":"opencode-mimo-v2.5-free","provider":"opencode","label":"Mimo v2.5 (gratuit)","duration_seconds":73,"screenshot":true,"tokens":{"input_tokens": 4500, "output_tokens": 4000, "cache_read": 85500, "cache_write": 0, "cost": 0.0, "messages": 5},"estimated_cost":0.000000}]
+}

@@ -1,0 +1,11 @@
+{
+  "model": "opencode/mimo-v2.5-free",
+  "provider": "opencode",
+  "label": "Mimo v2.5 (gratuit)",
+  "challenge": "2026-07-10-football-fireworks",
+  "timestamp": "2026-07-10T20:55:35Z",
+  "duration_seconds": 108,
+  "screenshot": true,
+  "tokens": {"input_tokens": 8300, "output_tokens": 6300, "cache_read": 165200, "cache_write": 0, "cost": 0.0, "messages": 9},
+  "estimated_cost": 0.000000
+}
