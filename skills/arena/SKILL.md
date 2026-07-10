@@ -3,45 +3,53 @@ name: arena
 description: Arena d'évaluation — crée et exécute des challenges sur plusieurs modèles en parallèle
 ---
 
-# Arena
+# Arena — Interaction
 
-Guide complet dans `README.md`. Résumé :
+Tu es l'interface de l'arena. L'utilisateur interagit avec toi en langage naturel. Tu pilotes tout.
 
-## Commandes
+## Créer un challenge
 
-| Depuis opencode | Depuis le terminal |
-|---|---|
-| `/new-challenge <nom>` | `bash scripts/new-challenge <nom>` |
-| `/run-challenge <nom>` | `bash scripts/run-challenge <nom>` |
+Quand l'utilisateur dit "j'ai une idée de challenge" (ou équivalent) :
 
-## Structure
+1. **Demande** ce qu'il veut tester. Laisse-le décrire le brief en quelques phrases.
+2. **Pose 2-3 questions** pour clarifier : contexte, format attendu, critères de succès.
+3. **Montre les modèles disponibles** : exécute `opencode models` et affiche les résultats. Demande "lesquels veux-tu tester ?"
+4. **Génère un nom** à partir du brief (snake_case).
+5. **Crée le challenge** :
+   - Écris `challenges/<nom>/challenge.md` avec la consigne proprement structurée
+   - Écris `challenges/<nom>/models.json` avec les modèles choisis
+   - Écris `mkdir -p challenges/<nom>/runs`
+6. Propose : "Je lance le test tout de suite ?"
 
-```
-challenges/<nom>/
-├── challenge.md       # consigne donnée à chaque agent
-├── models.json        # modèles à tester (id, label, provider)
-├── leaderboard.json   # résultats comparés (généré par run)
-└── runs/<slug>/       # résultats par modèle (généré)
-    ├── output.md
-    ├── screenshot.png
-    └── meta.json
-```
+## Lancer un challenge
 
-Le slug est le model ID avec les `/` remplacés par `-`.
+Quand l'utilisateur dit "lance le challenge" (ou équivalent) :
 
-## Workflow
+1. **Liste les challenges** disponibles : `ls challenges/`
+2. **Demande lequel** s'il y en a plusieurs.
+3. **Exécute** avec la commande existante :
+   ```bash
+   bash scripts/run-challenge <nom>
+   ```
+4. **Affiche le leaderboard** à la fin : `cat challenges/<nom>/leaderboard.json`
 
-1. `/new-challenge mon-truc` → crée les fichiers
-2. Éditer `challenge.md` (consigne) et `models.json` (modèles)
-3. `/run-challenge mon-truc` → exécute
-4. Consulter `challenges/mon-truc/leaderboard.json`
+Si l'utilisateur préfère que tu lances toi-même les modèles via des sub-agents (sans le script bash) :
 
-## Liste des modèles
+1. Lis `challenges/<nom>/challenge.md` et `challenges/<nom>/models.json`
+2. Pour chaque modèle listé, lance un sub-agent via le Task tool :
+   - Le prompt du sub-agent contient la consigne du challenge
+   - Il doit sauvegarder ses résultats dans `challenges/<nom>/runs/<slug>/`
+3. Après tous les sub-agents, génère le leaderboard
 
-Les IDs sont ceux de `opencode models`. Exemple :
-```
-openrouter/anthropic/claude-sonnet-4
-openrouter/openai/gpt-4o
-openrouter/deepseek/deepseek-chat
-opencode/deepseek-v4-flash-free
-```
+> **Note** : les sub-agents Task utilisent tous le même modèle (le tien). Pour vraiment tester des modèles différents, préfère `bash scripts/run-challenge <nom>` qui utilise `opencode run --model <id>`.
+
+## Bonus : enrichir un challenge existant
+
+Si l'utilisateur demande "ajoute le modèle X au challenge Y" :
+1. Lis `challenges/Y/models.json`
+2. Ajoute le modèle à la liste
+3. Demande s'il veut relancer
+
+## Tarifs
+
+Les prix par modèle sont dans `scripts/pricing.json` ($/M tokens). Tu peux t'en servir pour estimer le coût d'un run.
