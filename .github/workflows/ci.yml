@@ -1,7 +1,7 @@
 name: ci
 # CI/CD autonome de model-arena (model-arena.avqn.ch). Mono-palier : push `main` → image GHCR
 # immuable (sha-<commit>) → deploy PROD. Coolify ne build jamais : on pointe le service prod sur
-# l'image déjà construite+testée. La grammaire Coolify est déléguée au workflow partagé d'avqn-dev.
+# l'image déjà construite+testée. La grammaire Coolify est déléguée au workflow partagé du repo ci.
 #
 # Deux déclencheurs :
 #   - workflow_dispatch : GATE seul (aucun deploy).
@@ -79,14 +79,14 @@ jobs:
             --cache-to   "type=gha,mode=max,scope=model-arena" \
             --tag "$IMG" --push .
 
-  # Deploy prod : délègue la grammaire Coolify au reusable workflow partagé d'avqn-dev.
+  # Deploy prod : délègue la grammaire Coolify au reusable workflow partagé du repo ci.
   deploy:
     needs: [prep, test, build]
     if: >-
       always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
       && needs.test.result == 'success'
       && (needs.build.result == 'success' || needs.build.result == 'skipped')
-    uses: a-v-q-n/avqn-dev/.github/workflows/deploy.yml@main
+    uses: a-v-q-n/ci/.github/workflows/deploy.yml@main
     with:
       uuid: u8kc0g8o4s0kkgs04ss0k8w8
       health_url: https://model-arena.avqn.ch/healthz.json
