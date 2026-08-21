@@ -1,5 +1,50 @@
 {
   "challenge": "2026-07-10-penalty-shootout-3d",
-  "timestamp": "2026-07-10T22:13:31Z",
-  "results": [{"model":"openrouter/anthropic/claude-fable-5","slug":"openrouter-anthropic-claude-fable-5","provider":"openrouter","label":"Claude Fable 5","duration_seconds":183,"screenshot":false,"tokens":{"input_tokens": 4, "output_tokens": 1700, "cache_read": 20600, "cache_write": 22300, "cost": 0.385, "messages": 3},"estimated_cost":0.000000},{"model":"openrouter/openai/gpt-5.6-sol-pro","slug":"openrouter-openai-gpt-5.6-sol-pro","provider":"openrouter","label":"GPT 5.6 Sol Pro","duration_seconds":183,"screenshot":false,"tokens":{"input_tokens": 38100, "output_tokens": 2700, "cache_read": 130400, "cache_write": 1500, "cost": 0.3448, "messages": 5},"estimated_cost":0.000000}]
+  "timestamp": "2026-07-10T22:45:00Z",
+  "results": [
+    {
+      "model": "openrouter/openai/gpt-5.6-sol-pro",
+      "slug": "openrouter-openai-gpt-5.6-sol-pro",
+      "provider": "openrouter",
+      "label": "GPT 5.6 Sol Pro",
+      "duration_seconds": 387,
+      "screenshot": false,
+      "tokens": {
+        "input_tokens": 27900,
+        "output_tokens": 2500,
+        "cache_read": 142300,
+        "cache_write": 1400,
+        "cost": 0.2942,
+        "messages": 5
+      },
+      "estimated_cost": 0.0
+    },
+    {
+      "model": "openrouter/openai/gpt-5.4-mini",
+      "slug": "openrouter-openai-gpt-5.4-mini",
+      "provider": "openrouter",
+      "label": "GPT 5.4 Mini",
+      "duration_seconds": 0,
+      "screenshot": true,
+      "tokens": {},
+      "estimated_cost": 0.0
+    },
+    {
+      "model": "openrouter/anthropic/claude-fable-5",
+      "slug": "openrouter-anthropic-claude-fable-5",
+      "provider": "openrouter",
+      "label": "Claude Fable 5",
+      "duration_seconds": 409,
+      "screenshot": true,
+      "tokens": {
+        "input_tokens": 36,
+        "output_tokens": 24400,
+        "cache_read": 688200,
+        "cache_write": 48200,
+        "cost": 2.5102,
+        "messages": 18
+      },
+      "estimated_cost": 0.0
+    }
+  ]
 }

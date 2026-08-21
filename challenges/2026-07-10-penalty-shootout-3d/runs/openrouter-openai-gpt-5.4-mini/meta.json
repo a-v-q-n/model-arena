@@ -1,0 +1,11 @@
+{
+  "model": "openrouter/openai/gpt-5.4-mini",
+  "provider": "openrouter",
+  "label": "GPT 5.4 Mini",
+  "challenge": "2026-07-10-penalty-shootout-3d",
+  "timestamp": "2026-07-10T22:43:00Z",
+  "duration_seconds": 0,
+  "screenshot": true,
+  "tokens": {},
+  "estimated_cost": 0.0
+}

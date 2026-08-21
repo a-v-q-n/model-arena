@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Penalty Shootout 3D</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: linear-gradient(#8edcff, #6cc9ff 45%, #4f9f4a 45%, #3d8b3d);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #game { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  #hud {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    display: flex; flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+  #topbar {
+    pointer-events: none;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgba(4, 18, 36, 0.42);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.16);
+  }
+  #score {
+    color: #fff;
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    font-size: clamp(16px, 2.6vw, 22px);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.35);
+  }
+  #attempts { display: flex; gap: 7px; }
+  .pip {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(255,255,255,0.24);
+    border: 2px solid rgba(255,255,255,0.5);
+  }
+  .pip.goal { background: #41eb74; border-color: #fff; }
+  .pip.miss { background: #ff5d63; border-color: #fff; }
+
+  #aim {
+    position: fixed;
+    left: 50%; top: 58%;
+    width: 200px; height: 200px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s ease;
+  }
+  #aim.show { opacity: 1; }
+  #aim .ring {
+    position: absolute; inset: 50px;
+    border: 3px solid rgba(255,255,255,0.86);
+    border-radius: 50%;
+    box-shadow: 0 0 0 10px rgba(255,255,255,0.08), 0 0 40px rgba(255,255,255,0.16);
+  }
+  #aim .arrow {
+    position: absolute; left: 50%; top: 50%;
+    width: 5px; height: 74px;
+    border-radius: 999px;
+    background: linear-gradient(#fff, #ffe66d);
+    transform-origin: 50% 100%;
+    box-shadow: 0 0 16px rgba(255,255,255,0.45);
+  }
+  #aim .head {
+    position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-bottom: 18px solid #ffe66d;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));
+  }
+
+  #hint {
+    color: rgba(255,255,255,0.96);
+    font-weight: 800;
+    font-size: clamp(16px, 2.8vw, 20px);
+    text-align: center;
+    max-width: 92vw;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.45);
+    margin-bottom: 4px;
+  }
+
+  #message {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    pointer-events: none;
+    font-size: clamp(36px, 8vw, 74px);
+    font-weight: 1000;
+    color: #fff;
+    text-shadow: 0 4px 0 rgba(0,0,0,.22), 0 10px 28px rgba(0,0,0,.32);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity .18s ease, transform .18s cubic-bezier(.2,1.6,.4,1);
+  }
+  #message.show { opacity: 1; transform: scale(1); }
+  #message.small { font-size: clamp(24px, 4.5vw, 40px); }
+
+  #endscreen {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    background: rgba(6, 18, 32, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+    text-align: center;
+    padding: 22px;
+  }
+  #endscreen.show { display: flex; }
+  #endtitle {
+    font-size: clamp(40px, 10vw, 84px);
+    font-weight: 1000;
+    color: #ffe95c;
+    text-shadow: 0 4px 0 rgba(0,0,0,0.25), 0 12px 30px rgba(0,0,0,0.35);
+  }
+  #endtitle.lose { color: #d7e6ff; }
+  #endscore {
+    color: #fff;
+    font-size: clamp(18px, 4vw, 28px);
+    font-weight: 800;
+  }
+  #replay {
+    pointer-events: auto;
+    border: 0;
+    border-radius: 999px;
+    padding: 16px 34px;
+    min-width: 220px;
+    font-size: 20px;
+    font-weight: 900;
+    color: #12351d;
+    background: linear-gradient(#63ff83, #2dce61);
+    box-shadow: 0 7px 0 #1a8c40, 0 16px 24px rgba(0,0,0,.28);
+  }
+  #replay:active { transform: translateY(4px); box-shadow: 0 3px 0 #1a8c40, 0 10px 18px rgba(0,0,0,.22); }
+
+  #rotate {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    background: #0b1c33;
+    color: #fff;
+    z-index: 30;
+    text-align: center;
+    padding: 24px;
+  }
+  #rotate .icon { font-size: 58px; animation: spin 1.8s ease-in-out infinite; }
+  #rotate .txt { font-size: 20px; font-weight: 800; line-height: 1.35; }
+  @keyframes spin { 0%, 22% { transform: rotate(0deg); } 60%, 100% { transform: rotate(90deg); } }
+  @media (orientation: portrait) { #rotate { display: flex; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud">
+  <div id="topbar">
+    <div id="score">0 / 0</div>
+    <div id="attempts"></div>
+  </div>
+  <div id="message"></div>
+  <div id="hint">Glisse pour viser puis relâche pour tirer. Un tap court déclenche aussi le tir.</div>
+</div>
+<div id="aim"><div class="ring"></div><div class="arrow" id="aimArrow"><div class="head"></div></div></div>
+<div id="endscreen">
+  <div id="endtitle"></div>
+  <div id="endscore"></div>
+  <button id="replay">REJOUER</button>
+</div>
+<div id="rotate"><div class="icon">📱</div><div class="txt">Tourne ton téléphone en mode paysage pour jouer</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+
+const ATTEMPTS = 5;
+const WIN_SCORE = 3;
+const GOAL_W = 7.32;
+const GOAL_H = 2.44;
+const BALL_R = 0.22;
+const FIELD_W = 28;
+const FIELD_L = 44;
+const SPOT_Z = 12.5;
+const GOAL_Z = -18;
+const GOAL_LINE_Z = -16.8;
+const KICK_SPEED = 18;
+
+const gameEl = document.getElementById('game');
+const scoreEl = document.getElementById('score');
+const attemptsEl = document.getElementById('attempts');
+const hintEl = document.getElementById('hint');
+const aimEl = document.getElementById('aim');
+const aimArrowEl = document.getElementById('aimArrow');
+const messageEl = document.getElementById('message');
+const endscreenEl = document.getElementById('endscreen');
+const endtitleEl = document.getElementById('endtitle');
+const endsocreEl = document.getElementById('endscore');
+const replayEl = document.getElementById('replay');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+gameEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x90dfff, 45, 115);
+scene.background = new THREE.Color(0x8fdcff);
+
+const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 4.4, 23);
+camera.lookAt(0, 1.6, -7);
+
+scene.add(new THREE.HemisphereLight(0xe0fbff, 0x39803a, 1.2));
+const sun = new THREE.DirectionalLight(0xfff2d7, 1.6);
+sun.position.set(-10, 18, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -24;
+sun.shadow.camera.right = 24;
+sun.shadow.camera.top = 24;
+sun.shadow.camera.bottom = -24;
+scene.add(sun);
+
+function mat(color, roughness = 1) {
+  return new THREE.MeshLambertMaterial({ color, roughness });
+}
+
+function makePip() {
+  const pip = document.createElement('div');
+  pip.className = 'pip';
+  attemptsEl.appendChild(pip);
+  return pip;
+}
+
+const field = new THREE.Group();
+{
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(FIELD_W, FIELD_L), mat(0x43a548));
+  grass.rotation.x = -Math.PI / 2;
+  grass.receiveShadow = true;
+  field.add(grass);
+
+  for (let i = 0; i < 11; i++) {
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(FIELD_W, 4.2), mat(i % 2 ? 0x4ab94f : 0x41a145));
+    strip.rotation.x = -Math.PI / 2;
+    strip.position.z = i * 4.1 - FIELD_L / 2 + 2.1;
+    strip.position.y = 0.01;
+    strip.receiveShadow = true;
+    field.add(strip);
+  }
+
+  const lineMat = mat(0xffffff);
+  function line(w, h, x, z) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lineMat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(x, 0.02, z);
+    field.add(mesh);
+  }
+  line(18.6, 0.12, 0, -16.8);
+  line(16.5, 0.12, 0, -14.5);
+  line(0.12, 16.5, -8.25, -22.7);
+  line(0.12, 16.5, 8.25, -22.7);
+  const spot = new THREE.Mesh(new THREE.CircleGeometry(0.16, 14), lineMat);
+  spot.rotation.x = -Math.PI / 2;
+  spot.position.set(0, 0.02, SPOT_Z);
+  field.add(spot);
+
+  const centerArc = new THREE.Mesh(new THREE.RingGeometry(4.4, 4.52, 34, 1, Math.PI * 1.05, Math.PI * 0.9), lineMat);
+  centerArc.rotation.x = -Math.PI / 2;
+  centerArc.position.set(0, 0.02, -14.5);
+  field.add(centerArc);
+
+  const posts = new THREE.Group();
+  const postMat = mat(0xffffff);
+  const postGeo = new THREE.CylinderGeometry(0.09, 0.09, GOAL_H, 8);
+  const barGeo = new THREE.CylinderGeometry(0.09, 0.09, GOAL_W, 8);
+  const left = new THREE.Mesh(postGeo, postMat);
+  left.position.set(-GOAL_W / 2, GOAL_H / 2, GOAL_Z);
+  const right = new THREE.Mesh(postGeo, postMat);
+  right.position.set(GOAL_W / 2, GOAL_H / 2, GOAL_Z);
+  const cross = new THREE.Mesh(barGeo, postMat);
+  cross.rotation.z = Math.PI / 2;
+  cross.position.set(0, GOAL_H, GOAL_Z);
+  [left, right, cross].forEach((m) => { m.castShadow = true; posts.add(m); });
+  field.add(posts);
+
+  const netMat = new THREE.MeshBasicMaterial({ color: 0xdde8ff, wireframe: true, transparent: true, opacity: 0.42 });
+  const net = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_W, GOAL_H + 0.8, 10, 6), netMat);
+  net.position.set(0, 1.2, GOAL_Z - 1.0);
+  field.add(net);
+
+  const standRows = 7;
+  for (let r = 0; r < standRows; r++) {
+    const row = new THREE.Group();
+    row.position.z = -28 - r * 1.2;
+    row.position.y = 0.35 + r * 0.22;
+    const count = 18 + r * 4;
+    for (let i = 0; i < count; i++) {
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.38, 5), mat([0xffd34f, 0xff6b6b, 0x57d3ff, 0x8ef06d][(i + r) % 4]));
+      base.position.set((i - count / 2) * 0.9, 0, 0);
+      base.rotation.y = (i % 2) * 0.4;
+      row.add(base);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 5, 5), mat(0xffd9b3));
+      head.position.set(base.position.x, 0.28, 0);
+      row.add(head);
+    }
+    field.add(row);
+  }
+
+  const flags = new THREE.Group();
+  for (let i = -1; i <= 1; i += 2) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6), mat(0xffffff));
+    pole.position.set(i * 12, 1.2, GOAL_Z - 0.5);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.7, 0.08), mat(i > 0 ? 0xff5d63 : 0xffe75c));
+    flag.position.set(i * 12.56, 2.05, GOAL_Z - 0.38);
+    flags.add(pole, flag);
+  }
+  field.add(flags);
+
+  const tuftGeo = new THREE.ConeGeometry(0.06, 0.22, 4);
+  const tufts = new THREE.InstancedMesh(tuftGeo, mat(0x2d8f37), 170);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < 170; i++) {
+    dummy.position.set((Math.random() - 0.5) * 24, 0.11, Math.random() * 30 - 18);
+    dummy.rotation.y = Math.random() * Math.PI;
+    dummy.rotation.x = (Math.random() - 0.5) * 0.25;
+    dummy.scale.setScalar(0.75 + Math.random() * 0.9);
+    dummy.updateMatrix();
+    tufts.setMatrixAt(i, dummy.matrix);
+  }
+  field.add(tufts);
+}
+scene.add(field);
+
+function makePlayer(colorTop, colorShorts) {
+  const g = new THREE.Group();
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.1, 0.45), mat(colorTop));
+  torso.position.y = 1.55;
+  torso.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 8, 8), mat(0xffd2a4));
+  head.position.y = 2.35;
+  head.castShadow = true;
+  const shorts = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.52, 0.42), mat(colorShorts));
+  shorts.position.y = 1.02;
+  shorts.castShadow = true;
+  const legGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.95, 6);
+  const leftLeg = new THREE.Mesh(legGeo, mat(0x1d293d));
+  leftLeg.position.set(-0.18, 0.45, 0);
+  leftLeg.castShadow = true;
+  const rightLeg = new THREE.Mesh(legGeo, mat(0x1d293d));
+  rightLeg.position.set(0.18, 0.45, 0);
+  rightLeg.castShadow = true;
+  const armGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.78, 6);
+  const armL = new THREE.Mesh(armGeo, mat(colorTop));
+  armL.position.set(-0.58, 1.7, 0);
+  armL.rotation.z = 0.55;
+  const armR = new THREE.Mesh(armGeo, mat(colorTop));
+  armR.position.set(0.58, 1.7, 0);
+  armR.rotation.z = -0.55;
+  [torso, head, shorts, leftLeg, rightLeg, armL, armR].forEach((m) => g.add(m));
+  return g;
+}
+
+const kicker = makePlayer(0xffc83d, 0x1342a5);
+kicker.position.set(0, 0, SPOT_Z + 0.2);
+kicker.rotation.y = Math.PI;
+scene.add(kicker);
+
+const keeper = makePlayer(0xffffff, 0xf64b4b);
+keeper.position.set(0, 0, -14.95);
+keeper.rotation.y = Math.PI;
+scene.add(keeper);
+
+const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 14, 14), mat(0xffffff));
+ball.castShadow = true;
+ball.position.set(0, BALL_R, SPOT_Z);
+scene.add(ball);
+
+const trailGroup = new THREE.Group();
+scene.add(trailGroup);
+
+let state = 'aiming';
+let attempts = 0;
+let score = 0;
+let currentPipIndex = 0;
+let touchId = null;
+let dragStart = null;
+let dragPos = null;
+let shot = null;
+let keeperAnim = null;
+let celebration = 0;
+let messageTimer = 0;
+
+const pips = Array.from({ length: ATTEMPTS }, () => makePip());
+
+function updateHud() {
+  scoreEl.textContent = `${score} / ${attempts}`;
+  pips.forEach((pip, i) => {
+    pip.className = 'pip';
+    if (i < attempts) pip.classList.add(i < score ? 'goal' : 'miss');
+  });
+}
+
+function showMessage(text, small = false, time = 1000) {
+  messageEl.textContent = text;
+  messageEl.className = small ? 'show small' : 'show';
+  messageTimer = time;
+}
+
+function hideMessage() { messageEl.className = ''; }
+
+function endGame() {
+  state = 'ended';
+  endscreenEl.classList.add('show');
+  const win = score >= WIN_SCORE;
+  endtitleEl.textContent = win ? 'VICTOIRE !' : 'DÉFAITE';
+  endtitleEl.className = win ? '' : 'lose';
+  endsocreEl.textContent = `${score} but${score > 1 ? 's' : ''} sur ${ATTEMPTS} tentatives`;
+  hintEl.textContent = win ? 'Belle série. Appuie sur rejouer pour une nouvelle partie.' : 'Le gardien a gagné cette fois. Rejoue pour prendre ta revanche.';
+  celebrate(win ? 1 : -1);
+}
+
+function resetRound() {
+  state = 'aiming';
+  attempts = 0;
+  score = 0;
+  celebration = 0;
+  endscreenEl.classList.remove('show');
+  hintEl.textContent = 'Glisse pour viser puis relâche pour tirer. Un tap court déclenche aussi le tir.';
+  updateHud();
+  ball.position.set(0, BALL_R, SPOT_Z);
+  ball.visible = true;
+  kicker.position.set(0, 0, SPOT_Z + 0.2);
+  kicker.rotation.set(0, Math.PI, 0);
+  keeper.position.set(0, 0, -14.95);
+  keeper.rotation.set(0, Math.PI, 0);
+  keeper.scale.setScalar(1);
+  keeperAnim = null;
+  shot = null;
+  dragStart = null;
+  dragPos = null;
+  touchId = null;
+  aimEl.classList.remove('show');
+  hideMessage();
+  pips.forEach((pip) => pip.className = 'pip');
+}
+
+function celebrate(amount) { celebration = amount; }
+
+function keeperTargetForShot(dirX, height) {
+  const bias = THREE.MathUtils.clamp(dirX * 2.2 + (Math.random() - 0.5) * 1.2, -3.8, 3.8);
+  return bias + THREE.MathUtils.clamp(height * 1.2, -0.6, 0.8);
+}
+
+function startShot(aim) {
+  if (state !== 'aiming') return;
+  state = 'shooting';
+  attempts += 1;
+  updateHud();
+
+  const dir = new THREE.Vector2(aim.x, aim.y);
+  if (dir.lengthSq() < 0.01) dir.set(0, 0);
+  dir.clampLength(0, 1);
+
+  const targetX = THREE.MathUtils.clamp(dir.x * 6.2, -6.0, 6.0);
+  const targetY = THREE.MathUtils.clamp(1.0 + dir.y * 2.8, 0.9, 4.2);
+  const keeperBias = keeperTargetForShot(dir.x, dir.y);
+  const keeperDive = Math.random() < 0.55 ? Math.sign(keeperBias || (Math.random() - 0.5)) : 0;
+  const keeperTargetX = THREE.MathUtils.clamp(keeperBias + keeperDive * 2.2, -4.2, 4.2);
+
+  const from = ball.position.clone();
+  const to = new THREE.Vector3(targetX, targetY, GOAL_Z + 0.15);
+  const mid = from.clone().lerp(to, 0.5);
+  mid.y += 6 + Math.max(0, dir.y) * 2.2;
+
+  shot = { t: 0, from, mid, to, speed: KICK_SPEED, targetX, targetY, keeperTargetX, dirX: dir.x, dirY: dir.y, resolved: false };
+
+  keeperAnim = {
+    t: 0,
+    fromX: keeper.position.x,
+    targetX: keeperTargetX,
+    duration: 0.46 + Math.random() * 0.15,
+    direction: Math.sign(keeperTargetX - keeper.position.x) || (Math.random() > 0.5 ? 1 : -1)
+  };
+
+  aimEl.classList.remove('show');
+  showMessage('TIR !', true, 260);
+}
+
+function resolveShot() {
+  if (!shot || shot.resolved) return;
+  shot.resolved = true;
+  const x = ball.position.x;
+  const y = ball.position.y;
+  const inFrame = Math.abs(x) < GOAL_W / 2 - 0.35 && y < GOAL_H - 0.1 && y > 0.06 && ball.position.z < GOAL_Z + 0.35;
+  const keeperClose = Math.abs(ball.position.x - keeper.position.x) < 1.0 && ball.position.y < 2.6;
+  const saved = inFrame && keeperClose;
+  const goal = inFrame && !saved;
+
+  if (goal) {
+    score += 1;
+    showMessage('BUT !', false, 900);
+    celebrate(1);
+  } else {
+    const postHit = Math.abs(Math.abs(x) - GOAL_W / 2) < 0.35 && y < GOAL_H;
+    showMessage(postHit ? 'POUTRE' : 'ARRÊT', false, 900);
+    celebrate(-1);
+  }
+
+  updateHud();
+  const done = attempts >= ATTEMPTS;
+  state = done ? 'ending' : 'between';
+  setTimeout(() => {
+    if (state === 'ending') {
+      endGame();
+    } else {
+      resetBallForNextShot();
+    }
+  }, 900);
+}
+
+function resetBallForNextShot() {
+  ball.position.set(0, BALL_R, SPOT_Z);
+  ball.visible = true;
+  shot = null;
+  keeperAnim = null;
+  state = 'aiming';
+  aimEl.classList.add('show');
+}
+
+function screenToAim(dx, dy) {
+  return {
+    x: THREE.MathUtils.clamp(dx / 120, -1, 1),
+    y: THREE.MathUtils.clamp(-dy / 120, -1, 1)
+  };
+}
+
+function startDrag(ev) {
+  if (state !== 'aiming') return;
+  touchId = ev.pointerId;
+  dragStart = { x: ev.clientX, y: ev.clientY };
+  dragPos = { x: ev.clientX, y: ev.clientY };
+  aimEl.classList.add('show');
+  ev.target.setPointerCapture?.(ev.pointerId);
+}
+
+function updateDrag(ev) {
+  if (touchId !== ev.pointerId || !dragStart) return;
+  dragPos = { x: ev.clientX, y: ev.clientY };
+  const dx = dragPos.x - dragStart.x;
+  const dy = dragPos.y - dragStart.y;
+  const aim = screenToAim(dx, dy);
+  const angle = Math.atan2(aim.x, Math.max(0.15, aim.y + 0.8));
+  aimArrowEl.style.transform = `translate(-50%, -100%) rotate(${angle}rad) scale(${0.95 + Math.min(Math.hypot(dx, dy) / 180, 0.5)})`;
+}
+
+function finishDrag(ev, asTap = false) {
+  if (touchId !== ev.pointerId || state !== 'aiming') return;
+  const dx = dragPos ? dragPos.x - dragStart.x : 0;
+  const dy = dragPos ? dragPos.y - dragStart.y : 0;
+  const dist = Math.hypot(dx, dy);
+  const aim = screenToAim(dx, dy);
+  touchId = null;
+  dragStart = null;
+  dragPos = null;
+  if (dist < 8 || asTap) {
+    startShot({ x: 0, y: 0 });
+  } else {
+    startShot(aim);
+  }
+}
+
+function onPointerDown(ev) { if (state === 'aiming') startDrag(ev); }
+function onPointerMove(ev) { updateDrag(ev); }
+function onPointerUp(ev) { finishDrag(ev); }
+
+renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: false });
+renderer.domElement.addEventListener('pointerup', onPointerUp, { passive: false });
+renderer.domElement.addEventListener('pointercancel', onPointerUp, { passive: false });
+
+replayEl.addEventListener('click', resetRound);
+
+function updatePlayerPose(t) {
+  const ready = state === 'aiming';
+  kicker.position.z = SPOT_Z + 0.2;
+  kicker.position.y = Math.sin(t * 2.2) * 0.02;
+  if (ready) kicker.rotation.y = Math.PI + Math.sin(t * 1.2) * 0.04;
+  if (state === 'shooting' && shot) {
+    kicker.rotation.x = -0.12;
+  } else {
+    kicker.rotation.x = 0;
+  }
+}
+
+function updateKeeper(t) {
+  if (!keeperAnim || state === 'aiming') {
+    keeper.position.x = THREE.MathUtils.lerp(keeper.position.x, 0, 0.1);
+    keeper.rotation.z *= 0.9;
+    return;
+  }
+  keeperAnim.t += 0.016;
+  const p = Math.min(keeperAnim.t / keeperAnim.duration, 1);
+  const ease = p < 0.45 ? p / 0.45 : 1 - Math.pow((p - 0.45) / 0.55, 2);
+  const dive = Math.sin(Math.PI * Math.min(p, 1));
+  keeper.position.x = THREE.MathUtils.lerp(keeperAnim.fromX, keeperAnim.targetX, ease);
+  keeper.position.y = -0.05 + dive * 0.2;
+  keeper.rotation.z = -keeperAnim.direction * dive * 1.1;
+  keeper.rotation.x = dive * 0.25;
+  if (p >= 1) keeperAnim = null;
+}
+
+function updateShot(dt) {
+  if (!shot) return;
+  shot.t += dt * shot.speed;
+  const u = Math.min(shot.t / 1.05, 1);
+  const a = shot.from.clone().lerp(shot.mid, u);
+  const b = shot.mid.clone().lerp(shot.to, u);
+  const pos = a.lerp(b, u);
+  pos.y += Math.sin(u * Math.PI) * 0.75;
+  ball.position.copy(pos);
+  ball.rotation.x += dt * 10;
+  ball.rotation.y += dt * 8;
+  if (u >= 1 && !shot.resolved) resolveShot();
+}
+
+function updateCelebration(dt) {
+  if (state === 'ended') return;
+  if (celebration !== 0) {
+    const target = celebration > 0 ? 1.08 : 0.9;
+    scene.scale.lerp(new THREE.Vector3(target, target, target), 0.03);
+  } else {
+    scene.scale.lerp(new THREE.Vector3(1, 1, 1), 0.03);
+  }
+}
+
+function animate(now) {
+  const t = now * 0.001;
+  const dt = Math.min(0.033, animate.last ? t - animate.last : 0.016);
+  animate.last = t;
+
+  if (messageTimer > 0) {
+    messageTimer -= dt;
+    if (messageTimer <= 0) hideMessage();
+  }
+
+  if (state === 'aiming') aimEl.classList.add('show');
+  updatePlayerPose(t);
+  updateKeeper(t);
+  updateShot(dt);
+  updateCelebration(dt);
+  camera.position.x = THREE.MathUtils.lerp(camera.position.x, celebration * 0.2, 0.03);
+  camera.position.y = THREE.MathUtils.lerp(camera.position.y, 4.4 + celebration * 0.1, 0.02);
+  camera.lookAt(0, 1.65, -7);
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state === 'between') aimEl.classList.add('show');
+});
+
+updateHud();
+aimEl.classList.add('show');
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
